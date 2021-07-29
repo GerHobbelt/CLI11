@@ -104,10 +104,11 @@ class ConfigBase : public Config {
     std::string configSection{};
 
   public:
-    std::string
+    virtual inline std::string
     to_config(const App * /*app*/, bool default_also, bool write_description, std::string prefix) const override;
+    virtual ~ConfigBase() override = default;
 
-    std::vector<ConfigItem> from_config(std::istream &input) const override;
+    virtual inline std::vector<ConfigItem> from_config(std::istream &input) const override;
     /// Specify the configuration for comment characters
     ConfigBase *comment(char cchar) {
         commentChar = cchar;
