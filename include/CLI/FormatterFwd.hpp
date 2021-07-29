@@ -103,10 +103,10 @@ class FormatterLambda final : public FormatterBase {
     explicit FormatterLambda(funct_t funct) : lambda_(std::move(funct)) {}
 
     /// Adding a destructor (mostly to make GCC 4.7 happy)
-    ~FormatterLambda() noexcept override {}  // NOLINT(modernize-use-equals-default)
+    virtual ~FormatterLambda() noexcept override = default;  // NOLINT(modernize-use-equals-default)
 
     /// This will simply call the lambda function
-    std::string make_help(const App *app, std::string name, AppFormatMode mode) const override {
+    virtual std::string make_help(const App *app, std::string name, AppFormatMode mode) const override {
         return lambda_(app, name, mode);
     }
 };
@@ -118,6 +118,7 @@ class Formatter : public FormatterBase {
     Formatter() = default;
     Formatter(const Formatter &) = default;
     Formatter(Formatter &&) = default;
+    virtual ~Formatter() noexcept override = default;
 
     /// @name Overridables
     ///@{
@@ -151,7 +152,7 @@ class Formatter : public FormatterBase {
     virtual std::string make_usage(const App *app, std::string name) const;
 
     /// This puts everything together
-    std::string make_help(const App * /*app*/, std::string, AppFormatMode) const override;
+    virtual std::string make_help(const App * /*app*/, std::string, AppFormatMode) const override;
 
     ///@}
     /// @name Options
