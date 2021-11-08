@@ -19,6 +19,8 @@
 #include <unordered_map>
 #include <utility>
 
+using Catch::Approx;
+
 class NotStreamable {};
 
 class Streamable {};

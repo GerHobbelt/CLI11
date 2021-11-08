@@ -19,6 +19,8 @@
 #include <unordered_set>
 #include <vector>
 
+using Catch::Approx;
+
 TEST_CASE_METHOD(TApp, "OneStringAgain", "[optiontype]") {
     std::string str;
     app.add_option("-s,--string", str);

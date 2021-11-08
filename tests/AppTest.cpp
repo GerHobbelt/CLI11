@@ -9,6 +9,8 @@
 #include <cstdint>
 #include <cstdlib>
 
+using Catch::Approx;
+
 TEST_CASE_METHOD(TApp, "OneFlagShort", "[app]") {
     app.add_flag("-c,--count");
     args = {"-c"};

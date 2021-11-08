@@ -20,6 +20,8 @@
 #endif
 #endif
 
+using Catch::Approx;
+
 TEST_CASE_METHOD(TApp, "SimpleTransform", "[transform]") {
     int value{0};
     auto opt = app.add_option("-s", value)->transform(CLI::Transformer({{"one", std::string("1")}}));
