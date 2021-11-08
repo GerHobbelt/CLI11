@@ -799,9 +799,10 @@ class App {
 
     /// Add option for flag with integer result - defaults to allowing multiple passings, but can be forced to one
     /// if `multi_option_policy(CLI::MultiOptionPolicy::Throw)` is used.
-    template <typename T,
-              enable_if_t<std::is_constructible<T, std::int64_t>::value && !is_bool<T>::value, detail::enabler> =
-                  detail::dummy>
+    template <
+        typename T,
+        enable_if_t<std::is_constructible<T, std::int64_t>::value && !std::is_const<T>::value && !is_bool<T>::value,
+                    detail::enabler> = detail::dummy>
     Option *add_flag(std::string flag_name,
                      T &flag_count,  ///< A variable holding the count
                      std::string flag_description = "") {
@@ -2824,10 +2825,13 @@ class App {
                 parse_order_.push_back(op.get());
             }
         }
-
-        // if we only partially completed a type then add an empty string for later processing
-        if(min_num > 0 && op->get_type_size_max() != min_num && (collected % op->get_type_size_max()) != 0) {
-            op->add_result(std::string{});
+        // if we only partially completed a type then add an empty string if allowed for later processing
+        if(min_num > 0 && (collected % op->get_type_size_max()) != 0) {
+            if(op->get_type_size_max() != op->get_type_size_min()) {
+                op->add_result(std::string{});
+            } else {
+                throw ArgumentMismatch::PartialType(op->get_name(), op->get_type_size_min(), op->get_type_name());
+            }
         }
         if(op->get_trigger_on_parse()) {
             op->run_callback();
