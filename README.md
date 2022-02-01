@@ -428,6 +428,7 @@ CLI11 has several Validators built-in that perform some common checks
 * `CLI::ExistingDirectory`: Requires that the directory exists.
 * `CLI::ExistingPath`: Requires that the path (file or directory) exists.
 * `CLI::NonexistentPath`: Requires that the path does not exist.
+* `CLI::FileOnDefaultPath`: 🚧 Best used as a transform, Will check that a file exists either directly or in a default path and update the path appropriately.  See [Transforming Validators](#transforming-validators) for more details
 * `CLI::Range(min,max)`: Requires that the option be between min and max (make sure to use floating point if needed). Min defaults to 0.
 * `CLI::Bounded(min,max)`: Modify the input such that it is always between min and max (make sure to use floating point if needed). Min defaults to 0.  Will produce an error if conversion is not possible.
 * `CLI::PositiveNumber`: Requires the number be greater than 0
@@ -483,6 +484,8 @@ of `Transformer`:
 * `auto p = std::make_shared<CLI::TransformPairs<std::string>>(std::initializer_list<std::pair<std::string,std::string>>({"key1", "map1"},{"key2","map2"})); CLI::Transformer(p)`: You can modify `p` later. `TransformPairs<T>` is an alias for `std::vector<std::pair<<std::string,T>>`
 
 NOTES:  If the container used in `IsMember`, `Transformer`, or `CheckedTransformer` has a `find` function like `std::unordered_map`  or `std::map` then that function is used to do the searching. If it does not have a `find` function a linear search is performed.  If there are filters present, the fast search is performed first, and if that fails a linear search with the filters on the key values is performed.
+
+* `CLI::FileOnDefaultPath(default_path)`: 🚧 can be used to check for files in a default path.  If used as a transform it will first check that a file exists, if it does nothing further is done,  if it does not it tries to add a default Path to the file and search there again.  If the file does not exist an error is returned normally but this can be disabled using CLI::FileOnDefaultPath(default_path, false).  This allows multiple paths to be chained using multiple transform calls.
 
 ##### Validator operations
 
@@ -591,6 +594,7 @@ There are several options that are supported on the main app and subcommands and
 * `.enabled_by_default()`: Specify that at the start of each parse the subcommand/option_group should be enabled.  This is useful for allowing some Subcommands to disable others.
 * `.silent()`: Specify that the subcommand is silent meaning that if used it won't show up in the subcommand list.  This allows the use of subcommands as modifiers
 * `.validate_positionals()`: Specify that positionals should pass validation before matching.  Validation is specified through `transform`, `check`, and `each` for an option.  If an argument fails validation it is not an error and matching proceeds to the next available positional or extra arguments.
+* `.validate_optional_arguments()`:🚧 Specify that optional arguments should pass validation before being assigned to an option.  Validation is specified through `transform`, `check`, and `each` for an option.  If an argument fails validation it is not an error and matching proceeds to the next available positional subcommand or extra arguments.
 * `.excludes(option_or_subcommand)`: If given an option pointer or pointer to another subcommand, these subcommands cannot be given together.  In the case of options, if the option is passed the subcommand cannot be used and will generate an error.
 * `.needs(option_or_subcommand)`: If given an option pointer or pointer to another subcommand, the subcommands will require the given option to have been given before this subcommand is validated which occurs prior to execution of any callback or after parsing is completed.
 * `.require_option()`: Require 1 or more options or option groups be used.
@@ -793,6 +797,14 @@ app.set_config("--config")->expected(1, X);
 ```
 
 Where X is some positive number and will allow up to `X` configuration files to be specified by separate `--config` arguments.  Value strings with quote characters in it will be printed with a single quote. All other arguments will use double quote.  Empty strings will use a double quoted argument. Numerical or boolean values are not quoted.
+
+NOTE:  Transforms and checks can be used with the option pointer returned from set_config like any other option to validate the input if needed.  It can also be used with the built in transform `CLI::FileOnDefaultPath` to look in a default path as well as the current one.  For example
+
+```cpp
+app.set_config("--config")->transform(CLI::FileOnDefaultPath("/to/default/path/"));
+```
+
+See [Transforming Validators](#transforming-validators) for additional details on this validator. Multiple transforms or validators can be used either by multiple calls or using `|` operations with the transform.
 
 ### Inheriting defaults
 
