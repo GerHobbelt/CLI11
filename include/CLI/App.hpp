@@ -2413,7 +2413,7 @@ class App {
         }
         // check for section close
         if(item.name == "--") {
-            if(configurable_) {
+            if(configurable_ && parse_complete_callback_) {
                 _process_callbacks();
                 _process_requirements();
                 run_callback();
@@ -2844,9 +2844,9 @@ class App {
                     break;
                 }
                 if(validate_optional_arguments_) {
-                    std::string optarg = args.back();
-                    optarg = op->_validate(optarg, 0);
-                    if(!optarg.empty()) {
+                    std::string arg = args.back();
+                    arg = op->_validate(arg, 0);
+                    if(!arg.empty()) {
                         break;
                     }
                 }
