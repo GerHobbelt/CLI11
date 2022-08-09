@@ -13,11 +13,13 @@ jobs:
     name: Single header
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           submodules: true
 
-      - uses: actions/setup-python@v2
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.x"
 
       - name: Prepare CMake config
         run: cmake -S . -B build -DCLI11_SINGLE_FILE=ON
@@ -37,12 +39,12 @@ jobs:
       - name: Copy file to main folder
         run: cp build/include/CLI11.hpp CLI11.hpp
 
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         with:
           name: CLI11.hpp
           path: CLI11.hpp
 
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         with:
           name: CLI11-Source
           path: CLI11-Source
