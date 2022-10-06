@@ -26,8 +26,7 @@ namespace detail {
 
 CLI11_INLINE bool split_short(const std::string &current, std::string &name, std::string &rest) {
     if(current.size() > 1 && current[0] == '-' && valid_first_char(current[1])) {
-        name = current.substr(1, 1);
-        rest = current.substr(2);
+        name = current.substr(1);
         return true;
     }
     return false;
@@ -111,12 +110,8 @@ get_names(const std::vector<std::string> &input) {
             continue;
         }
         if(name.length() > 1 && name[0] == '-' && name[1] != '-') {
-            if(name.length() == 2 && valid_first_char(name[1]))
-                short_names.emplace_back(1, name[1]);
-            else if(name.length() > 2)
-                throw BadNameString::MissingDash(name);
-            else
-                throw BadNameString::OneCharName(name);
+            name = name.substr(1);
+            short_names.emplace_back(name);
         } else if(name.length() > 2 && name.substr(0, 2) == "--") {
             name = name.substr(2);
             if(valid_name_string(name))
