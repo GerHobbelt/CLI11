@@ -93,3 +93,8 @@ namespace {namespace} {{
 {formatter_inl_hpp}
 
 }} // namespace {namespace}
+
+// Un-define conflicting macros
+#undef TRUE
+#undef FALSE
+#undef CONST
