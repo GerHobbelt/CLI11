@@ -65,7 +65,7 @@ class Config {
     }
 
     /// Parse a config file, throw an error (ParseError:ConfigParseError or FileError) on failure
-    CLI11_NODISCARD std::vector<ConfigItem> from_file(const std::string &name) const {
+    CLI11_NODISCARD virtual std::vector<ConfigItem> from_file(const std::string &name) const {
         std::ifstream input{name};
         if(!input.good())
             throw FileError::Missing(name);
