@@ -265,8 +265,9 @@ CLI11_INLINE Option *App::add_flag_callback(std::string flag_name,
                                             std::string flag_description) {
 
     CLI::callback_t fun = [function](const CLI::results_t &res) {
+        using CLI::detail::lexical_cast;
         bool trigger{false};
-        auto result = CLI::detail::lexical_cast(res[0], trigger);
+        auto result = lexical_cast(res[0], trigger);
         if(result && trigger) {
             function();
         }
@@ -281,8 +282,9 @@ App::add_flag_function(std::string flag_name,
                        std::string flag_description) {
 
     CLI::callback_t fun = [function](const CLI::results_t &res) {
+        using CLI::detail::lexical_cast;
         std::int64_t flag_count{0};
-        CLI::detail::lexical_cast(res[0], flag_count);
+        lexical_cast(res[0], flag_count);
         function(flag_count);
         return true;
     };
@@ -666,7 +668,7 @@ CLI11_NODISCARD CLI11_INLINE std::string App::help(std::string prev, AppFormatMo
     // Delegate to subcommand if needed
     auto selected_subcommands = get_subcommands();
     if(!selected_subcommands.empty()) {
-        return selected_subcommands.at(0)->help(prev, mode);
+        return selected_subcommands.back()->help(prev, mode);
     }
     return formatter_->make_help(this, prev, mode);
 }
