@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2022, University of Cincinnati, developed by Henry Schreiner
+// Copyright (c) 2017-2023, University of Cincinnati, developed by Henry Schreiner
 // under NSF AWARD 1414736 and by the respective contributors.
 // All rights reserved.
 //
@@ -149,6 +149,12 @@ class App {
     ///@}
     /// @name Help
     ///@{
+
+    /// Usage to put after program/subcommand description in the help output INHERITABLE
+    std::string usage_{};
+
+    /// This is a function that generates a usage to put after program/subcommand description in help output
+    std::function<std::string()> usage_callback_{};
 
     /// Footer to put after all options in the help output INHERITABLE
     std::string footer_{};
@@ -947,6 +953,16 @@ class App {
     /// @name Help
     ///@{
 
+    /// Set usage.
+    App *usage(std::string usage_string) {
+        usage_ = std::move(usage_string);
+        return this;
+    }
+    /// Set usage.
+    App *usage(std::function<std::string()> usage_function) {
+        usage_callback_ = std::move(usage_function);
+        return this;
+    }
     /// Set footer.
     App *footer(std::string footer_string) {
         footer_ = std::move(footer_string);
@@ -1054,6 +1070,11 @@ class App {
 
     /// Get the group of this subcommand
     CLI11_NODISCARD const std::string &get_group() const { return group_; }
+
+    /// Generate and return the usage.
+    CLI11_NODISCARD std::string get_usage() const {
+        return (usage_callback_) ? usage_callback_() + '\n' + usage_ : usage_;
+    }
 
     /// Generate and return the footer.
     CLI11_NODISCARD std::string get_footer() const {
@@ -1264,8 +1285,9 @@ class App {
     bool _parse_subcommand(std::vector<std::string> &args);
 
     /// Parse a short (false) or long (true) argument, must be at the top of the list
+    /// if local_processing_only is set to true then fallthrough is disabled will return false if not found
     /// return true if the argument was processed or false if nothing was done
-    bool _parse_arg(std::vector<std::string> &args, detail::Classifier current_type);
+    bool _parse_arg(std::vector<std::string> &args, detail::Classifier current_type, bool local_processing_only);
 
     /// Trigger the pre_parse callback if needed
     void _trigger_pre_parse(std::size_t remaining_args);

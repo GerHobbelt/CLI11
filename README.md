@@ -938,6 +938,20 @@ nameless subcommands are allowed. Callbacks for nameless subcommands are only
 triggered if any options from the subcommand were parsed. Subcommand names given
 through the `add_subcommand` method have the same restrictions as option names.
 
+🚧 Options or flags in a subcommand may be directly specified using dot notation
+
+- `--subcommand.long=val` (long subcommand option)
+- `--subcommand.long val` (long subcommand option)
+- `--subcommand.f=val` (short form subcommand option)
+- `--subcommand.f val` (short form subcommand option)
+- `--subcommand.f` (short form subcommand flag)
+- `--subcommand1.subsub.f val` (short form nested subcommand option)
+
+The use of dot notation in this form is equivalent `--subcommand.long <args>` =>
+`subcommand --long <args> ++`. Nested subcommands also work `"sub1.subsub"`
+would trigger the subsub subcommand in `sub1`. This is equivalent to "sub1
+subsub"
+
 #### Subcommand options
 
 There are several options that are supported on the main app and subcommands and
@@ -1062,6 +1076,10 @@ option_groups. These are:
 - `.prefix_command()`: Like `allow_extras`, but stop immediately on the first
   unrecognized item. It is ideal for allowing your app or subcommand to be a
   "prefix" to calling another app.
+- `.usage(message)`: Replace text to appear at the start of the help string
+  after description.
+- `.usage(std::string())`: Set a callback to generate a string that will appear
+  at the start of the help string after description.
 - `.footer(message)`: Set text to appear at the bottom of the help string.
 - `.footer(std::string())`: Set a callback to generate a string that will appear
   at the end of the help string.
@@ -1356,8 +1374,9 @@ multiple calls or using `|` operations with the transform.
 Many of the defaults for subcommands and even options are inherited from their
 creators. The inherited default values for subcommands are `allow_extras`,
 `prefix_command`, `ignore_case`, `ignore_underscore`, `fallthrough`, `group`,
-`footer`,`immediate_callback` and maximum number of required subcommands. The
-help flag existence, name, and description are inherited, as well.
+`usage`, `footer`, `immediate_callback` and maximum number of required
+subcommands. The help flag existence, name, and description are inherited, as
+well.
 
 Options have defaults for `group`, `required`, `multi_option_policy`,
 `ignore_case`, `ignore_underscore`, `delimiter`, and `disable_flag_override`. To
