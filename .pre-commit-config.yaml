@@ -1,4 +1,4 @@
-exclude: ^(.github/workflows/|docs/img/)
+exclude: ^(.github/workflows/|docs/img/|tests/fuzzFail)
 ci:
   autoupdate_commit_msg: "chore(deps): pre-commit.ci autoupdate"
   autofix_commit_msg: "style: pre-commit.ci fixes"
@@ -26,7 +26,7 @@ repos:
       - id: debug-statements
 
   - repo: https://github.com/pre-commit/mirrors-clang-format
-    rev: v18.1.4
+    rev: v18.1.5
     hooks:
       - id: clang-format
         types_or: [c++, c, cuda]
