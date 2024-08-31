@@ -10,6 +10,8 @@
 #include "CLI/CLI.hpp"
 #endif
 
+#include "app_helper.hpp"
+
 #include "catch.hpp"
 #include <fstream>
 
@@ -718,6 +720,22 @@ TEST_CASE("THelp: CustomHelp", "[help]") {
     }
 }
 
+TEST_CASE("THelp: HelpSubcommandPriority", "[help]") {
+    CLI::App app{"My prog"};
+
+    app.set_help_flag("-h", "display help and exit");
+
+    auto *sub1 = app.add_subcommand("sub1");
+    std::string someFile = "";
+
+    put_env("SOME_FILE", "NOT_A_FILE");
+    sub1->add_option("-f,--file", someFile)->envname("SOME_FILE")->required()->expected(1)->check(CLI::ExistingFile);
+
+    std::string input{"sub1 -h"};
+    CHECK_THROWS_AS(app.parse(input), CLI::CallForHelp);
+    unset_env("SOME_FILE");
+}
+
 TEST_CASE("THelp: NextLineShouldBeAlignmentInMultilineDescription", "[help]") {
     CLI::App app;
     int i{0};
@@ -1316,5 +1334,21 @@ TEST_CASE("TVersion: parse_throw", "[help]") {
         const auto &appc = app;
         const auto *cptr = appc.get_version_ptr();
         CHECK(1U == cptr->count());
+    }
+}
+
+TEST_CASE("TVersion: exit", "[help]") {
+
+    CLI::App app;
+
+    app.set_version_flag("--version", CLI11_VERSION);
+
+    try {
+        app.parse("--version");
+    } catch(const CLI::CallForVersion &v) {
+        std::ostringstream out;
+        auto ret = app.exit(v, out);
+        CHECK_THAT(out.str(), Contains(CLI11_VERSION));
+        CHECK(0 == ret);
     }
 }

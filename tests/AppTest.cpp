@@ -29,7 +29,7 @@ TEST_CASE_METHOD(TApp, "OneFlagShortValues", "[app]") {
     run();
     CHECK(app.count("-c") == 1u);
     CHECK(app.count("--count") == 1u);
-    auto v = app["-c"]->results();
+    const auto &v = app["-c"]->results();
     CHECK("v1" == v[0]);
 
     CHECK_THROWS_AS(app["--invalid"], CLI::OptionNotFound);
@@ -56,10 +56,21 @@ TEST_CASE_METHOD(TApp, "OneFlagShortValuesAs", "[app]") {
     auto vec = opt->as<std::vector<int>>();
     CHECK(1 == vec[0]);
     CHECK(2 == vec[1]);
+
+    flg->multi_option_policy(CLI::MultiOptionPolicy::Sum);
+    vec = opt->as<std::vector<int>>();
+    CHECK(3 == vec[0]);
+    CHECK(vec.size() == 1);
+
     flg->multi_option_policy(CLI::MultiOptionPolicy::Join);
     CHECK("1\n2" == opt->as<std::string>());
     flg->delimiter(',');
     CHECK("1,2" == opt->as<std::string>());
+    flg->multi_option_policy(CLI::MultiOptionPolicy::Reverse)->expected(1, 300);
+    vec = opt->as<std::vector<int>>();
+    REQUIRE(vec.size() == 2U);
+    CHECK(2 == vec[0]);
+    CHECK(1 == vec[1]);
 }
 
 TEST_CASE_METHOD(TApp, "OneFlagShortWindows", "[app]") {
@@ -868,6 +879,29 @@ TEST_CASE_METHOD(TApp, "SumOptString", "[app]") {
     CHECK("i2" == val);
 }
 
+TEST_CASE_METHOD(TApp, "ReverseOpt", "[app]") {
+
+    std::vector<std::string> val;
+    auto *opt1 = app.add_option("--val", val)->multi_option_policy(CLI::MultiOptionPolicy::Reverse);
+
+    args = {"--val=string1", "--val=string2", "--val", "string3", "string4"};
+
+    run();
+
+    CHECK(val.size() == 4U);
+
+    CHECK(val.front() == "string4");
+    CHECK(val.back() == "string1");
+
+    opt1->expected(1, 2);
+    run();
+    CHECK(val.size() == 2U);
+
+    CHECK(val.front() == "string4");
+    CHECK(val.back() == "string3");
+    CHECK(opt1->get_multi_option_policy() == CLI::MultiOptionPolicy::Reverse);
+}
+
 TEST_CASE_METHOD(TApp, "JoinOpt2", "[app]") {
 
     std::string str;
@@ -1069,6 +1103,42 @@ TEST_CASE_METHOD(TApp, "emptyVectorReturn", "[app]") {
     CHECK_FALSE(strs3.empty());
 }
 
+TEST_CASE_METHOD(TApp, "emptyVectorReturnReduce", "[app]") {
+
+    std::vector<std::string> strs;
+    std::vector<std::string> strs2;
+    std::vector<std::string> strs3;
+    auto *opt1 = app.add_option("--str", strs)->required()->expected(0, 2);
+    app.add_option("--str3", strs3)->expected(1, 3);
+    app.add_option("--str2", strs2)->expected(1, 1)->take_first();
+    args = {"--str"};
+
+    CHECK_NOTHROW(run());
+    CHECK(std::vector<std::string>({""}) == strs);
+    args = {"--str", "one", "two"};
+
+    run();
+
+    CHECK(std::vector<std::string>({"one", "two"}) == strs);
+
+    args = {"--str", "{}", "--str2", "{}", "test"};
+
+    run();
+
+    CHECK(strs.empty());
+    CHECK(std::vector<std::string>{"{}"} == strs2);
+    opt1->default_str("{}");
+    args = {"--str"};
+
+    CHECK_NOTHROW(run());
+    CHECK(strs.empty());
+    opt1->required(false);
+    args = {"--str3", "{}"};
+
+    CHECK_NOTHROW(run());
+    CHECK_FALSE(strs3.empty());
+}
+
 TEST_CASE_METHOD(TApp, "RequiredOptsDoubleShort", "[app]") {
 
     std::vector<std::string> strs;
@@ -1141,6 +1211,21 @@ TEST_CASE_METHOD(TApp, "PositionalAtEnd", "[app]") {
 
     args = {"param2", "-O", "Test"};
     CHECK_THROWS_AS(run(), CLI::ExtrasError);
+}
+
+// Tests positionals at end
+TEST_CASE_METHOD(TApp, "PositionalInjectSeparator", "[app]") {
+    std::string options;
+    std::vector<std::vector<std::string>> foo;
+
+    app.add_option("-O", options);
+    auto *fooopt = app.add_option("foo", foo);
+    fooopt->inject_separator();
+    args = {"test1", "-O", "Test", "test2"};
+    run();
+
+    CHECK("Test" == options);
+    CHECK(foo.size() == 2U);
 }
 
 // Tests positionals at end
@@ -2573,6 +2658,42 @@ TEST_CASE("System Args", "[app]") {
 
     if(retval == -1) {
         FAIL("Executable '" << commandline << "' reported different argc count");
+    }
+
+    if(retval > 0) {
+        FAIL("Executable '" << commandline << "' reported different argv at index " << (retval - 1));
+    }
+
+    if(retval != 0) {
+        FAIL("Executable '" << commandline << "' failed with an unknown return code");
+    }
+}
+
+// #845
+TEST_CASE("Ensure UTF-8", "[app]") {
+    const char *commandline = CLI11_ENSURE_UTF8_EXE " 1234 false \"hello world\"";
+    int retval = std::system(commandline);
+
+    if(retval == -1) {
+        FAIL("Executable '" << commandline << "' reported that argv pointer changed where it should not have been");
+    }
+
+    if(retval > 0) {
+        FAIL("Executable '" << commandline << "' reported different argv at index " << (retval - 1));
+    }
+
+    if(retval != 0) {
+        FAIL("Executable '" << commandline << "' failed with an unknown return code");
+    }
+}
+
+// #845
+TEST_CASE("Ensure UTF-8 called twice", "[app]") {
+    const char *commandline = CLI11_ENSURE_UTF8_TWICE_EXE " 1234 false \"hello world\"";
+    int retval = std::system(commandline);
+
+    if(retval == -1) {
+        FAIL("Executable '" << commandline << "' reported that argv pointer changed where it should not have been");
     }
 
     if(retval > 0) {

@@ -5,12 +5,12 @@ ci:
 
 repos:
   - repo: https://github.com/psf/black
-    rev: 23.7.0
+    rev: 23.10.1
     hooks:
       - id: black
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.4.0
+    rev: v4.5.0
     hooks:
       - id: check-added-large-files
       - id: check-case-conflict
@@ -26,7 +26,7 @@ repos:
       - id: debug-statements
 
   - repo: https://github.com/pre-commit/mirrors-clang-format
-    rev: v16.0.6
+    rev: v17.0.3
     hooks:
       - id: clang-format
         types_or: [c++, c, cuda]
@@ -38,7 +38,7 @@ repos:
         additional_dependencies: [pyyaml]
 
   - repo: https://github.com/pre-commit/mirrors-prettier
-    rev: "v3.0.0"
+    rev: "v3.0.3"
     hooks:
       - id: prettier
         types_or: [yaml, markdown, html, css, scss, javascript, json]
@@ -87,7 +87,7 @@ repos:
         exclude: .pre-commit-config.yaml
 
   - repo: https://github.com/codespell-project/codespell
-    rev: v2.2.5
+    rev: v2.2.6
     hooks:
       - id: codespell
         args: ["-L", "atleast,ans,doub,inout"]

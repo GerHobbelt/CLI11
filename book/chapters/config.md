@@ -8,7 +8,9 @@ config flag. The second item is the default file name. If that is specified, the
 config will try to read that file. The third item is the help string, with a
 reasonable default, and the final argument is a boolean (default: false) that
 indicates that the configuration file is required and an error will be thrown if
-the file is not found and this is set to true.
+the file is not found and this is set to true. The option pointer returned by
+`set_config` is the same type as returned by `add_option` and all modifiers
+including validators, and checks are valid.
 
 ### Adding a default path
 
@@ -98,12 +100,27 @@ If it is needed to get the configuration file name used this can be obtained via
 `app["--config"]->as<std::string>()` assuming `--config` was the configuration
 option name.
 
+### Order of precedence
+
+By default if multiple configuration files are given they are read in reverse
+order. With the last one given taking precedence over the earlier ones. This
+behavior can be changed through the `multi_option_policy`. For example:
+
+```cpp
+app.set_config("--config")
+    ->multi_option_policy(CLI::MultiOptionPolicy::TakeAll);
+```
+
+will read the files in the order given, which may be useful in some
+circumstances. Using `CLI::MultiOptionPolicy::TakeLast` would work similarly
+getting the last `N` files given.
+
 ## Configure file format
 
 Here is an example configuration file, in
 [TOML](https://github.com/toml-lang/toml) format:
 
-```ini
+```toml
 # Comments are supported, using a #
 # The default section is [default], case insensitive
 
@@ -147,6 +164,47 @@ sub.subcommand = true
 The main differences are in vector notation and comment character. Note: CLI11
 is not a full TOML parser as it just reads values as strings. It is possible
 (but not recommended) to mix notation.
+
+### Multi-line strings
+
+The default config file parser supports multi-line strings like the toml
+standard [TOML](https://toml.io/en/). It also supports multiline comments like
+python doc strings.
+
+```toml
+"""
+this is a multine
+comment
+"""
+
+""" this is also
+a multiline comment"""
+
+''' and so is
+this
+'''
+
+value = 1
+str = """
+this is a multiline string value
+the first \n is removed and so is the last
+"""
+
+str2 = ''' this is also a mu-
+ltiline value '''
+
+str3 = """\
+    a line continuation \
+    will skip \
+    all white space between the '\' \
+    and the next non-whitespace character \
+    making this into a single line
+"""
+
+```
+
+The key is that the closing of the multiline string must be at the end of a line
+and match the starting 3 quote sequence.
 
 ## Multiple configuration files
 

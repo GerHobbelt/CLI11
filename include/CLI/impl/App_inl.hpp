@@ -57,10 +57,32 @@ CLI11_INLINE App::App(std::string app_description, std::string app_name, App *pa
     }
 }
 
+CLI11_NODISCARD CLI11_INLINE char **App::ensure_utf8(char **argv) {
+#ifdef _WIN32
+    (void)argv;
+
+    normalized_argv_ = detail::compute_win32_argv();
+
+    if(!normalized_argv_view_.empty()) {
+        normalized_argv_view_.clear();
+    }
+
+    normalized_argv_view_.reserve(normalized_argv_.size());
+    for(auto &arg : normalized_argv_) {
+        // using const_cast is well-defined, string is known to not be const.
+        normalized_argv_view_.push_back(const_cast<char *>(arg.data()));
+    }
+
+    return normalized_argv_view_.data();
+#else
+    return argv;
+#endif
+}
+
 CLI11_INLINE App *App::name(std::string app_name) {
 
     if(parent_ != nullptr) {
-        auto oname = name_;
+        std::string oname = name_;
         name_ = app_name;
         const auto &res = _compare_subcommand_names(*this, *_get_fallthrough_parent());
         if(!res.empty()) {
@@ -318,8 +340,8 @@ CLI11_INLINE Option *App::set_config(std::string option_name,
             config_ptr_->force_callback_ = true;
         }
         config_ptr_->configurable(false);
-        // set the option to take the last value given by default
-        config_ptr_->take_last();
+        // set the option to take the last value and reverse given by default
+        config_ptr_->multi_option_policy(MultiOptionPolicy::Reverse);
     }
 
     return config_ptr_;
@@ -810,7 +832,7 @@ CLI11_NODISCARD CLI11_INLINE bool App::check_name(std::string name_to_check) con
     if(local_name == name_to_check) {
         return true;
     }
-    for(auto les : aliases_) {  // NOLINT(performance-for-range-copy)
+    for(std::string les : aliases_) {  // NOLINT(performance-for-range-copy)
         if(ignore_underscore_) {
             les = detail::remove_underscore(les);
         }
@@ -1013,6 +1035,21 @@ CLI11_NODISCARD CLI11_INLINE detail::Classifier App::_recognize(const std::strin
     return detail::Classifier::NONE;
 }
 
+CLI11_INLINE void App::_process_config_file(const std::string &config_file, bool throw_error) {
+    auto path_result = detail::check_path(config_file.c_str());
+    if(path_result == detail::path_type::file) {
+        try {
+            std::vector<ConfigItem> values = config_formatter_->from_file(config_file);
+            _parse_config(values);
+        } catch(const FileError &) {
+            if(throw_error)
+                throw;
+        }
+    } else if(throw_error) {
+        throw FileError::Missing(config_file);
+    }
+}
+
 CLI11_INLINE void App::_process_config_file() {
     if(config_ptr_ != nullptr) {
         bool config_required = config_ptr_->get_required();
@@ -1032,20 +1069,8 @@ CLI11_INLINE void App::_process_config_file() {
             }
             return;
         }
-        for(auto rit = config_files.rbegin(); rit != config_files.rend(); ++rit) {
-            const auto &config_file = *rit;
-            auto path_result = detail::check_path(config_file.c_str());
-            if(path_result == detail::path_type::file) {
-                try {
-                    std::vector<ConfigItem> values = config_formatter_->from_file(config_file);
-                    _parse_config(values);
-                } catch(const FileError &) {
-                    if(config_required || file_given)
-                        throw;
-                }
-            } else if(config_required || file_given) {
-                throw FileError::Missing(config_file);
-            }
+        for(const auto &config_file : config_files) {
+            _process_config_file(config_file, config_required || file_given);
         }
     }
 }
@@ -1055,7 +1080,11 @@ CLI11_INLINE void App::_process_env() {
         if(opt->count() == 0 && !opt->envname_.empty()) {
             std::string ename_string = detail::get_environment_value(opt->envname_);
             if(!ename_string.empty()) {
-                opt->add_result(ename_string);
+                std::string result = ename_string;
+                result = opt->_validate(result, 0);
+                if(result.empty()) {
+                    opt->add_result(ename_string);
+                }
             }
         }
     }
@@ -1527,6 +1556,7 @@ CLI11_NODISCARD CLI11_INLINE bool App::_has_remaining_positionals() const {
 CLI11_INLINE bool App::_parse_positional(std::vector<std::string> &args, bool haltOnSubcommand) {
 
     const std::string &positional = args.back();
+    Option *posOpt{nullptr};
 
     if(positionals_at_end_) {
         // deal with the case of required arguments at the end which should take precedence over other arguments
@@ -1543,56 +1573,47 @@ CLI11_INLINE bool App::_parse_positional(std::vector<std::string> &args, bool ha
                                 continue;
                             }
                         }
-
-                        parse_order_.push_back(opt.get());
-                        /// if we require a separator add it here
-                        if(opt->get_inject_separator()) {
-                            if(!opt->results().empty() && !opt->results().back().empty()) {
-                                opt->add_result(std::string{});
-                            }
-                        }
-                        if(opt->get_trigger_on_parse() &&
-                           opt->current_option_state_ == Option::option_state::callback_run) {
-                            opt->clear();
-                        }
-                        opt->add_result(positional);
-                        if(opt->get_trigger_on_parse()) {
-                            opt->run_callback();
-                        }
-                        args.pop_back();
-                        return true;
+                        posOpt = opt.get();
+                        break;
                     }
                 }
             }
         }
     }
-    for(const Option_p &opt : options_) {
-        // Eat options, one by one, until done
-        if(opt->get_positional() &&
-           (static_cast<int>(opt->count()) < opt->get_items_expected_min() || opt->get_allow_extra_args())) {
-            if(validate_positionals_) {
-                std::string pos = positional;
-                pos = opt->_validate(pos, 0);
-                if(!pos.empty()) {
-                    continue;
+    if(posOpt == nullptr) {
+        for(const Option_p &opt : options_) {
+            // Eat options, one by one, until done
+            if(opt->get_positional() &&
+               (static_cast<int>(opt->count()) < opt->get_items_expected_min() || opt->get_allow_extra_args())) {
+                if(validate_positionals_) {
+                    std::string pos = positional;
+                    pos = opt->_validate(pos, 0);
+                    if(!pos.empty()) {
+                        continue;
+                    }
                 }
+                posOpt = opt.get();
+                break;
             }
-            if(opt->get_inject_separator()) {
-                if(!opt->results().empty() && !opt->results().back().empty()) {
-                    opt->add_result(std::string{});
-                }
-            }
-            if(opt->get_trigger_on_parse() && opt->current_option_state_ == Option::option_state::callback_run) {
-                opt->clear();
-            }
-            opt->add_result(positional);
-            if(opt->get_trigger_on_parse()) {
-                opt->run_callback();
-            }
-            parse_order_.push_back(opt.get());
-            args.pop_back();
-            return true;
         }
+    }
+    if(posOpt != nullptr) {
+        parse_order_.push_back(posOpt);
+        if(posOpt->get_inject_separator()) {
+            if(!posOpt->results().empty() && !posOpt->results().back().empty()) {
+                posOpt->add_result(std::string{});
+            }
+        }
+        if(posOpt->get_trigger_on_parse() && posOpt->current_option_state_ == Option::option_state::callback_run) {
+            posOpt->clear();
+        }
+        posOpt->add_result(positional);
+        if(posOpt->get_trigger_on_parse()) {
+            posOpt->run_callback();
+        }
+
+        args.pop_back();
+        return true;
     }
 
     for(auto &subc : subcommands_) {
@@ -1935,7 +1956,7 @@ CLI11_INLINE void App::_trigger_pre_parse(std::size_t remaining_args) {
     } else if(immediate_callback_) {
         if(!name_.empty()) {
             auto pcnt = parsed_;
-            auto extras = std::move(missing_);
+            missing_t extras = std::move(missing_);
             clear();
             parsed_ = pcnt;
             pre_parse_called_ = true;
@@ -2121,12 +2142,12 @@ CLI11_INLINE void retire_option(App *app, Option *opt) {
                             ->allow_extra_args(opt->get_allow_extra_args());
 
     app->remove_option(opt);
-    auto *opt2 = app->add_option(option_copy->get_name(false, true), "option has been retired and has no effect")
-                     ->type_name("RETIRED")
-                     ->default_str("RETIRED")
-                     ->type_size(option_copy->get_type_size_min(), option_copy->get_type_size_max())
-                     ->expected(option_copy->get_expected_min(), option_copy->get_expected_max())
-                     ->allow_extra_args(option_copy->get_allow_extra_args());
+    auto *opt2 = app->add_option(option_copy->get_name(false, true), "option has been retired and has no effect");
+    opt2->type_name("RETIRED")
+        ->default_str("RETIRED")
+        ->type_size(option_copy->get_type_size_min(), option_copy->get_type_size_max())
+        ->expected(option_copy->get_expected_min(), option_copy->get_expected_max())
+        ->allow_extra_args(option_copy->get_allow_extra_args());
 
     Validator retired_warning{[opt2](std::string &) {
                                   std::cout << "WARNING " << opt2->get_name() << " is retired and has no effect\n";
