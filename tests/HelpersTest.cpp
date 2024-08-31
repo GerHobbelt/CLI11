@@ -1060,11 +1060,8 @@ TEST_CASE("RegEx: SplittingNew", "[helpers]") {
     CHECK_THROWS_AS([&]() { std::tie(shorts, longs, pname) = CLI::detail::get_names({"-hi"}); }(), CLI::BadNameString);
     CHECK_THROWS_AS([&]() { std::tie(shorts, longs, pname) = CLI::detail::get_names({"---hi"}); }(),
                     CLI::BadNameString);
-    CHECK_THROWS_AS(
-        [&]() {
-            std::tie(shorts, longs, pname) = CLI::detail::get_names({"one", "two"});
-        }(),
-        CLI::BadNameString);
+    CHECK_THROWS_AS([&]() { std::tie(shorts, longs, pname) = CLI::detail::get_names({"one", "two"}); }(),
+                    CLI::BadNameString);
 }
 
 TEST_CASE("String: ToLower", "[helpers]") { CHECK("one and two" == CLI::detail::to_lower("one And TWO")); }
