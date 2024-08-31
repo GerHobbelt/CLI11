@@ -1065,18 +1065,23 @@ CLI11_NODISCARD CLI11_INLINE detail::Classifier App::_recognize(const std::strin
     return detail::Classifier::NONE;
 }
 
-CLI11_INLINE void App::_process_config_file(const std::string &config_file, bool throw_error) {
+CLI11_INLINE bool App::_process_config_file(const std::string &config_file, bool throw_error) {
     auto path_result = detail::check_path(config_file.c_str());
     if(path_result == detail::path_type::file) {
         try {
             std::vector<ConfigItem> values = config_formatter_->from_file(config_file);
             _parse_config(values);
+            return true;
         } catch(const FileError &) {
-            if(throw_error)
+            if(throw_error) {
                 throw;
+            }
+            return false;
         }
     } else if(throw_error) {
         throw FileError::Missing(config_file);
+    } else {
+        return false;
     }
 }
 
@@ -1093,6 +1098,7 @@ CLI11_INLINE void App::_process_config_file() {
         config_ptr_->run_callback();
 
         auto config_files = config_ptr_->as<std::vector<std::string>>();
+        bool files_used{file_given};
         if(config_files.empty() || config_files.front().empty()) {
             if(config_required) {
                 throw FileError("config file is required but none was given");
@@ -1100,7 +1106,17 @@ CLI11_INLINE void App::_process_config_file() {
             return;
         }
         for(const auto &config_file : config_files) {
-            _process_config_file(config_file, config_required || file_given);
+            if(_process_config_file(config_file, config_required || file_given)) {
+                files_used = true;
+            }
+        }
+        if(!files_used) {
+            // this is done so the count shows as 0 if no callbacks were processed
+            config_ptr_->clear();
+            bool force = config_ptr_->force_callback_;
+            config_ptr_->force_callback_ = false;
+            config_ptr_->run_callback();
+            config_ptr_->force_callback_ = force;
         }
     }
 }
@@ -1120,11 +1136,9 @@ CLI11_INLINE void App::_process_env() {
     }
 
     for(App_p &sub : subcommands_) {
-        if(sub->get_name().empty() || !sub->parse_complete_callback_) {
-            if(sub->count_all() > 0) {
-                // only process environment variables if the callback has actually been triggered already
-                sub->_process_env();
-            }
+        if(sub->get_name().empty() || (sub->count_all() > 0 && !sub->parse_complete_callback_)) {
+            // only process environment variables if the callback has actually been triggered already
+            sub->_process_env();
         }
     }
 }
@@ -1466,11 +1480,12 @@ CLI11_INLINE bool App::_parse_single_config(const ConfigItem &item, std::size_t 
 
     if(op == nullptr) {
         // If the option was not present
-        if(get_allow_config_extras() == config_extras_mode::capture)
+        if(get_allow_config_extras() == config_extras_mode::capture) {
             // Should we worry about classifying the extras properly?
             missing_.emplace_back(detail::Classifier::NONE, item.fullname());
-        for(const auto &input : item.inputs) {
-            missing_.emplace_back(detail::Classifier::NONE, input);
+            for(const auto &input : item.inputs) {
+                missing_.emplace_back(detail::Classifier::NONE, input);
+            }
         }
         return false;
     }

@@ -678,7 +678,26 @@ TEST_CASE_METHOD(TApp, "IniGetRemainingOption", "[config]") {
     int two{0};
     app.add_option("--two", two);
     REQUIRE_NOTHROW(run());
-    std::vector<std::string> ExpectedRemaining = {ExtraOption, "3"};
+    std::vector<std::string> ExpectedRemaining = {ExtraOption, ExtraOptionValue};
+    CHECK(ExpectedRemaining == app.remaining());
+}
+
+TEST_CASE_METHOD(TApp, "IniIgnoreRemainingOption", "[config]") {
+    TempFile tmpini{"TestIniTmp.ini"};
+
+    app.set_config("--config", tmpini);
+    app.allow_config_extras(CLI::config_extras_mode::ignore);
+
+    {
+        std::ofstream out{tmpini};
+        out << "three=3\n";
+        out << "two=99\n";
+    }
+
+    int two{0};
+    app.add_option("--two", two);
+    REQUIRE_NOTHROW(run());
+    std::vector<std::string> ExpectedRemaining = {};
     CHECK(ExpectedRemaining == app.remaining());
 }
 
@@ -1049,6 +1068,16 @@ TEST_CASE_METHOD(TApp, "IniRequiredNotFound", "[config]") {
     CHECK_THROWS_AS(run(), CLI::FileError);
 }
 
+TEST_CASE_METHOD(TApp, "IniDefaultNotExist", "[config]") {
+
+    std::string noini = "TestIniNotExist.ini";
+    auto *cfg = app.set_config("--config", noini);
+
+    CHECK_NOTHROW(run());
+
+    CHECK(cfg->count() == 0);
+}
+
 TEST_CASE_METHOD(TApp, "IniNotRequiredPassedNotFound", "[config]") {
 
     std::string noini = "TestIniNotExist.ini";
@@ -1084,7 +1113,7 @@ TEST_CASE_METHOD(TApp, "IniRequired", "[config]") {
 
     TempFile tmpini{"TestIniTmp.ini"};
 
-    app.set_config("--config", tmpini, "", true);
+    auto *cfg = app.set_config("--config", tmpini, "", true);
 
     {
         std::ofstream out{tmpini};
@@ -1109,6 +1138,7 @@ TEST_CASE_METHOD(TApp, "IniRequired", "[config]") {
     args = {"--one=1", "--two=2"};
 
     CHECK_NOTHROW(run());
+    CHECK(cfg->count() == 1);
     CHECK(1 == one);
     CHECK(2 == two);
     CHECK(3 == three);
