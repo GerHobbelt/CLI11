@@ -9,9 +9,7 @@
 #include <complex>
 #include <cstdint>
 
-using Catch::Matchers::Contains;
 using Catch::Approx;
-
 using cx = std::complex<double>;
 
 CLI::Option *

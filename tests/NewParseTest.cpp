@@ -10,9 +10,7 @@
 #include <cstdint>
 #include <utility>
 
-using Catch::Matchers::Contains;
 using Catch::Approx;
-
 using cx = std::complex<double>;
 
 TEST_CASE_METHOD(TApp, "ComplexOption", "[newparse]") {
