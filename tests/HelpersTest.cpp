@@ -203,15 +203,26 @@ TEST_CASE("StringTools: Modify3", "[helpers]") {
 }
 
 TEST_CASE("StringTools: flagValues", "[helpers]") {
+    errno = 0;
     CHECK(-1 == CLI::detail::to_flag_value("0"));
+    CHECK(errno == 0);
     CHECK(1 == CLI::detail::to_flag_value("t"));
     CHECK(1 == CLI::detail::to_flag_value("1"));
     CHECK(6 == CLI::detail::to_flag_value("6"));
     CHECK(-6 == CLI::detail::to_flag_value("-6"));
     CHECK(-1 == CLI::detail::to_flag_value("false"));
     CHECK(1 == CLI::detail::to_flag_value("YES"));
-    CHECK_THROWS_AS(CLI::detail::to_flag_value("frog"), std::invalid_argument);
-    CHECK_THROWS_AS(CLI::detail::to_flag_value("q"), std::invalid_argument);
+    errno = 0;
+    CLI::detail::to_flag_value("frog");
+    CHECK(errno == EINVAL);
+    errno = 0;
+    CLI::detail::to_flag_value("q");
+    CHECK(errno == EINVAL);
+    errno = 0;
+    CLI::detail::to_flag_value(
+        "77777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777777");
+    CHECK(errno == ERANGE);
+    errno = 0;
     CHECK(-1 == CLI::detail::to_flag_value("NO"));
     CHECK(475555233 == CLI::detail::to_flag_value("475555233"));
 }
@@ -1035,6 +1046,19 @@ TEST_CASE("Types: TypeName", "[helpers]") {
     CHECK((atomic_name == "INT" || atomic_name == "TEXT"));
 }
 
+TEST_CASE("Types: TypeNameStrings", "[helpers]") {
+    auto sclass = CLI::detail::classify_object<std::string>::value;
+    CHECK(CLI::detail::object_category::string_assignable == sclass);
+
+    auto wsclass = CLI::detail::classify_object<std::wstring>::value;
+    CHECK(CLI::detail::object_category::wstring_assignable == wsclass);
+
+#if defined CLI11_HAS_FILEYSTEM && CLI11_HAS_FILESYSTEM > 0 && defined(_MSC_VER)
+    auto fspclass = CLI::detail::classify_object<std::filesystem::path>::value;
+    CHECK(CLI::detail::object_category::wstring_assignable == fspclass);
+#endif
+}
+
 TEST_CASE("Types: OverflowSmall", "[helpers]") {
     signed char x = 0;
     auto strmax = std::to_string((std::numeric_limits<signed char>::max)() + 1);
@@ -1342,4 +1366,15 @@ TEST_CASE("FixNewLines: EdgesCheck", "[helpers]") {
     std::string output = "\n; one\n; two\n; ";
     std::string result = CLI::detail::fix_newlines("; ", input);
     CHECK(output == result);
+}
+
+TEST_CASE("String: environment", "[helpers]") {
+    put_env("TEST1", "TESTS");
+
+    auto value = CLI::detail::get_environment_value("TEST1");
+    CHECK(value == "TESTS");
+    unset_env("TEST1");
+
+    value = CLI::detail::get_environment_value("TEST2");
+    CHECK(value.empty());
 }

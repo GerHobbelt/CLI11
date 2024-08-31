@@ -607,12 +607,23 @@ template <typename T> struct classify_object<T, typename std::enable_if<is_bool<
 template <typename T> struct classify_object<T, typename std::enable_if<std::is_floating_point<T>::value>::type> {
     static constexpr object_category value{object_category::floating_point};
 };
+#if defined _MSC_VER
+// in MSVC wstring should take precedence if available this isn't as useful on other compilers due to the broader use of
+// utf-8 encoding
+#define WIDE_STRING_CHECK                                                                                              \
+    !std::is_assignable<T &, std::wstring>::value && !std::is_constructible<T, std::wstring>::value
+#define STRING_CHECK true
+#else
+#define WIDE_STRING_CHECK true
+#define STRING_CHECK !std::is_assignable<T &, std::string>::value && !std::is_constructible<T, std::string>::value
+#endif
 
 /// String and similar direct assignment
 template <typename T>
-struct classify_object<T,
-                       typename std::enable_if<!std::is_floating_point<T>::value && !std::is_integral<T>::value &&
-                                               std::is_assignable<T &, std::string>::value>::type> {
+struct classify_object<
+    T,
+    typename std::enable_if<!std::is_floating_point<T>::value && !std::is_integral<T>::value && WIDE_STRING_CHECK &&
+                            std::is_assignable<T &, std::string>::value>::type> {
     static constexpr object_category value{object_category::string_assignable};
 };
 
@@ -622,7 +633,7 @@ struct classify_object<
     T,
     typename std::enable_if<!std::is_floating_point<T>::value && !std::is_integral<T>::value &&
                             !std::is_assignable<T &, std::string>::value && (type_count<T>::value == 1) &&
-                            std::is_constructible<T, std::string>::value>::type> {
+                            WIDE_STRING_CHECK && std::is_constructible<T, std::string>::value>::type> {
     static constexpr object_category value{object_category::string_constructible};
 };
 
@@ -630,9 +641,7 @@ struct classify_object<
 template <typename T>
 struct classify_object<T,
                        typename std::enable_if<!std::is_floating_point<T>::value && !std::is_integral<T>::value &&
-                                               !std::is_assignable<T &, std::string>::value &&
-                                               !std::is_constructible<T, std::string>::value &&
-                                               std::is_assignable<T &, std::wstring>::value>::type> {
+                                               STRING_CHECK && std::is_assignable<T &, std::wstring>::value>::type> {
     static constexpr object_category value{object_category::wstring_assignable};
 };
 
@@ -640,10 +649,8 @@ template <typename T>
 struct classify_object<
     T,
     typename std::enable_if<!std::is_floating_point<T>::value && !std::is_integral<T>::value &&
-                            !std::is_assignable<T &, std::string>::value &&
-                            !std::is_constructible<T, std::string>::value &&
                             !std::is_assignable<T &, std::wstring>::value && (type_count<T>::value == 1) &&
-                            std::is_constructible<T, std::wstring>::value>::type> {
+                            STRING_CHECK && std::is_constructible<T, std::wstring>::value>::type> {
     static constexpr object_category value{object_category::wstring_constructible};
 };
 
@@ -854,7 +861,7 @@ bool integral_conversion(const std::string &input, T &output) noexcept {
     if(input.empty() || input.front() == '-') {
         return false;
     }
-    char *val = nullptr;
+    char *val{nullptr};
     errno = 0;
     std::uint64_t output_ll = std::strtoull(input.c_str(), &val, 0);
     if(errno == ERANGE) {
@@ -897,8 +904,8 @@ bool integral_conversion(const std::string &input, T &output) noexcept {
     return false;
 }
 
-/// Convert a flag into an integer value  typically binary flags
-inline std::int64_t to_flag_value(std::string val) {
+/// Convert a flag into an integer value  typically binary flags sets errno to nonzero if conversion failed
+inline std::int64_t to_flag_value(std::string val) noexcept {
     static const std::string trueString("true");
     static const std::string falseString("false");
     if(val == trueString) {
@@ -926,7 +933,8 @@ inline std::int64_t to_flag_value(std::string val) {
             ret = 1;
             break;
         default:
-            throw std::invalid_argument("unrecognized character");
+            errno = EINVAL;
+            return -1;
         }
         return ret;
     }
@@ -935,7 +943,11 @@ inline std::int64_t to_flag_value(std::string val) {
     } else if(val == falseString || val == "off" || val == "no" || val == "disable") {
         ret = -1;
     } else {
-        ret = std::stoll(val);
+        char *loc_ptr{nullptr};
+        ret = std::strtoll(val.c_str(), &loc_ptr, 0);
+        if(loc_ptr != (val.c_str() + val.size()) && errno == 0) {
+            errno = EINVAL;
+        }
     }
     return ret;
 }
@@ -964,18 +976,16 @@ bool lexical_cast(const std::string &input, T &output) {
 template <typename T,
           enable_if_t<classify_object<T>::value == object_category::boolean_value, detail::enabler> = detail::dummy>
 bool lexical_cast(const std::string &input, T &output) {
-    try {
-        auto out = to_flag_value(input);
+    errno = 0;
+    auto out = to_flag_value(input);
+    if(errno == 0) {
         output = (out > 0);
-        return true;
-    } catch(const std::invalid_argument &) {
-        return false;
-    } catch(const std::out_of_range &) {
-        // if the number is out of the range of a 64 bit value then it is still a number and for this purpose is still
-        // valid all we care about the sign
+    } else if(errno == ERANGE) {
         output = (input[0] != '-');
-        return true;
+    } else {
+        return false;
     }
+    return true;
 }
 
 /// Floats
@@ -1326,6 +1336,9 @@ template <class AssignTo,
                       detail::enabler> = detail::dummy>
 bool lexical_conversion(const std::vector<std ::string> &strings, AssignTo &output) {
     output.erase(output.begin(), output.end());
+    if(strings.empty()) {
+        return true;
+    }
     if(strings.size() == 1 && strings[0] == "{}") {
         return true;
     }
@@ -1628,12 +1641,13 @@ inline std::string sum_string_vector(const std::vector<std::string> &values) {
         double tv{0.0};
         auto comp = lexical_cast(arg, tv);
         if(!comp) {
-            try {
-                tv = static_cast<double>(detail::to_flag_value(arg));
-            } catch(const std::exception &) {
-                fail = true;
+            errno = 0;
+            auto fv = detail::to_flag_value(arg);
+            fail = (errno != 0);
+            if(fail) {
                 break;
             }
+            tv = static_cast<double>(fv);
         }
         val += tv;
     }
@@ -1642,13 +1656,10 @@ inline std::string sum_string_vector(const std::vector<std::string> &values) {
             output.append(arg);
         }
     } else {
-        if(val <= static_cast<double>((std::numeric_limits<std::int64_t>::min)()) ||
-           val >= static_cast<double>((std::numeric_limits<std::int64_t>::max)()) ||
-           std::ceil(val) == std::floor(val)) {
-            output = detail::value_string(static_cast<int64_t>(val));
-        } else {
-            output = detail::value_string(val);
-        }
+        std::ostringstream out;
+        out.precision(16);
+        out << val;
+        output = out.str();
     }
     return output;
 }

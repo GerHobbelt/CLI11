@@ -315,8 +315,11 @@ CLI11_INLINE Option *App::set_config(std::string option_name,
         }
         if(!default_filename.empty()) {
             config_ptr_->default_str(std::move(default_filename));
+            config_ptr_->force_callback_ = true;
         }
         config_ptr_->configurable(false);
+        // set the option to take the last value given by default
+        config_ptr_->take_last();
     }
 
     return config_ptr_;
@@ -1014,10 +1017,18 @@ CLI11_INLINE void App::_process_config_file() {
     if(config_ptr_ != nullptr) {
         bool config_required = config_ptr_->get_required();
         auto file_given = config_ptr_->count() > 0;
+        if(!(file_given || config_ptr_->envname_.empty())) {
+            std::string ename_string = detail::get_environment_value(config_ptr_->envname_);
+            if(!ename_string.empty()) {
+                config_ptr_->add_result(ename_string);
+            }
+        }
+        config_ptr_->run_callback();
+
         auto config_files = config_ptr_->as<std::vector<std::string>>();
         if(config_files.empty() || config_files.front().empty()) {
             if(config_required) {
-                throw FileError::Missing("no specified config file");
+                throw FileError("config file is required but none was given");
             }
             return;
         }
@@ -1028,9 +1039,6 @@ CLI11_INLINE void App::_process_config_file() {
                 try {
                     std::vector<ConfigItem> values = config_formatter_->from_file(config_file);
                     _parse_config(values);
-                    if(!file_given) {
-                        config_ptr_->add_result(config_file);
-                    }
                 } catch(const FileError &) {
                     if(config_required || file_given)
                         throw;
@@ -1045,23 +1053,7 @@ CLI11_INLINE void App::_process_config_file() {
 CLI11_INLINE void App::_process_env() {
     for(const Option_p &opt : options_) {
         if(opt->count() == 0 && !opt->envname_.empty()) {
-            char *buffer = nullptr;
-            std::string ename_string;
-
-#ifdef _MSC_VER
-            // Windows version
-            std::size_t sz = 0;
-            if(_dupenv_s(&buffer, &sz, opt->envname_.c_str()) == 0 && buffer != nullptr) {
-                ename_string = std::string(buffer);
-                free(buffer);
-            }
-#else
-            // This also works on Windows, but gives a warning
-            buffer = std::getenv(opt->envname_.c_str());
-            if(buffer != nullptr)
-                ename_string = std::string(buffer);
-#endif
-
+            std::string ename_string = detail::get_environment_value(opt->envname_);
             if(!ename_string.empty()) {
                 opt->add_result(ename_string);
             }
@@ -1069,8 +1061,12 @@ CLI11_INLINE void App::_process_env() {
     }
 
     for(App_p &sub : subcommands_) {
-        if(sub->get_name().empty() || !sub->parse_complete_callback_)
-            sub->_process_env();
+        if(sub->get_name().empty() || !sub->parse_complete_callback_) {
+            if(sub->count_all() > 0) {
+                // only process environment variables if the callback has actually been triggered already
+                sub->_process_env();
+            }
+        }
     }
 }
 
@@ -1435,18 +1431,15 @@ CLI11_INLINE bool App::_parse_single_config(const ConfigItem &item, std::size_t 
                 auto res = config_formatter_->to_flag(item);
                 bool converted{false};
                 if(op->get_disable_flag_override()) {
-
-                    try {
-                        auto val = detail::to_flag_value(res);
-                        if(val == 1) {
-                            res = op->get_flag_value(item.name, "{}");
-                            converted = true;
-                        }
-                    } catch(...) {
+                    auto val = detail::to_flag_value(res);
+                    if(val == 1) {
+                        res = op->get_flag_value(item.name, "{}");
+                        converted = true;
                     }
                 }
 
                 if(!converted) {
+                    errno = 0;
                     res = op->get_flag_value(item.name, res);
                 }
 

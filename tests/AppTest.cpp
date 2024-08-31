@@ -11,6 +11,7 @@
 #include <complex>
 #include <cstdint>
 #include <cstdlib>
+#include <limits>
 
 using Catch::Approx;
 
@@ -642,6 +643,28 @@ TEST_CASE_METHOD(TApp, "StrangeOptionNames", "[app]") {
     CHECK(app["--{}"]->as<int>() == 5);
 }
 
+TEST_CASE_METHOD(TApp, "singledash", "[app]") {
+    app.add_option("-t");
+    try {
+        app.add_option("-test");
+    } catch(const CLI::BadNameString &e) {
+        std::string str = e.what();
+        CHECK_THAT(str, Contains("2 dashes"));
+        CHECK_THAT(str, Contains("-test"));
+    } catch(...) {
+        CHECK(false);
+    }
+    try {
+        app.add_option("-!");
+    } catch(const CLI::BadNameString &e) {
+        std::string str = e.what();
+        CHECK_THAT(str, Contains("one char"));
+        CHECK_THAT(str, Contains("-!"));
+    } catch(...) {
+        CHECK(false);
+    }
+}
+
 TEST_CASE_METHOD(TApp, "FlagLikeOption", "[app]") {
     bool val{false};
     auto *opt = app.add_option("--flag", val)->type_size(0)->default_str("true");
@@ -830,7 +853,7 @@ TEST_CASE_METHOD(TApp, "SumOptFloat", "[app]") {
 
     run();
 
-    CHECK(0.6 == val);
+    CHECK(std::fabs(0.6 - val) <= std::numeric_limits<double>::epsilon());
 }
 
 TEST_CASE_METHOD(TApp, "SumOptString", "[app]") {
@@ -1717,6 +1740,30 @@ TEST_CASE_METHOD(TApp, "FileExists", "[app]") {
     CHECK(!CLI::ExistingFile(myfile).empty());
 }
 
+#if defined CLI11_HAS_FILESYSTEM && CLI11_HAS_FILESYSTEM > 0 && defined(_MSC_VER)
+TEST_CASE_METHOD(TApp, "filesystemWideName", "[app]") {
+    std::filesystem::path myfile{L"voil\u20ac.txt"};
+
+    std::filesystem::path fpath;
+    app.add_option("--file", fpath)->check(CLI::ExistingFile, "existing file");
+
+    CHECK_THROWS_AS(app.parse(L"--file voil\u20ac.txt"), CLI::ValidationError);
+
+    bool ok = static_cast<bool>(std::ofstream(myfile).put('a'));  // create file
+    CHECK(ok);
+
+    // deactivate the check, so it should run now
+
+    CHECK_NOTHROW(app.parse(L"--file voil\u20ac.txt"));
+
+    CHECK(fpath == myfile);
+
+    CHECK(std::filesystem::exists(fpath));
+    std::filesystem::remove(myfile);
+    CHECK(!std::filesystem::exists(fpath));
+}
+#endif
+
 TEST_CASE_METHOD(TApp, "NotFileExists", "[app]") {
     std::string myfile{"TestNonFileNotUsed.txt"};
     CHECK(!CLI::ExistingFile(myfile).empty());
@@ -1976,6 +2023,28 @@ TEST_CASE_METHOD(TApp, "RangeDouble", "[app]") {
     double x{0.0};
     /// Note that this must be a double in Range, too
     app.add_option("--one", x)->check(CLI::Range(3.0, 6.0));
+
+    args = {"--one=1"};
+    CHECK_THROWS_AS(run(), CLI::ValidationError);
+
+    args = {"--one=7"};
+    CHECK_THROWS_AS(run(), CLI::ValidationError);
+
+    args = {"--one=3"};
+    run();
+
+    args = {"--one=5"};
+    run();
+
+    args = {"--one=6"};
+    run();
+}
+
+TEST_CASE_METHOD(TApp, "RangeFloat", "[app]") {
+
+    float x{0.0f};
+    /// Note that this must be a float in Range, too
+    app.add_option("--one", x, "testing floats")->check(CLI::Range(3.0, 6.0));
 
     args = {"--one=1"};
     CHECK_THROWS_AS(run(), CLI::ValidationError);
