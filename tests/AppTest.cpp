@@ -82,28 +82,6 @@ TEST_CASE_METHOD(TApp, "OneFlagShortWindows", "[app]") {
     CHECK(app.count("--count") == 1u);
 }
 
-TEST_CASE_METHOD(TApp, "WindowsLongShortMix1", "[app]") {
-    app.allow_windows_style_options();
-
-    auto *a = app.add_flag("-c");
-    auto *b = app.add_flag("--c");
-    args = {"/c"};
-    run();
-    CHECK(a->count() == 1u);
-    CHECK(b->count() == 0u);
-}
-
-TEST_CASE_METHOD(TApp, "WindowsLongShortMix2", "[app]") {
-    app.allow_windows_style_options();
-
-    auto *a = app.add_flag("--c");
-    auto *b = app.add_flag("-c");
-    args = {"/c"};
-    run();
-    CHECK(a->count() == 1u);
-    CHECK(b->count() == 0u);
-}
-
 TEST_CASE_METHOD(TApp, "CountNonExist", "[app]") {
     app.add_flag("-c,--count");
     args = {"-c"};
@@ -438,10 +416,10 @@ TEST_CASE_METHOD(TApp, "OneStringEqualVersionSingleStringQuotedEscapedCharacters
     app.add_option("-s,--string", str);
     app.add_option("-t,--tstr", str2);
     app.add_option("-m,--mstr", str3);
-    app.parse(R"raw(--string="this is my \"quoted\" string" -t 'qst\'ring 2' -m=`"quoted\` string"`")raw");
-    CHECK("this is my \"quoted\" string" == str);
-    CHECK("qst\'ring 2" == str2);
-    CHECK("\"quoted` string\"" == str3);
+    app.parse(R"raw(--string="this is my \n\"quoted\" string" -t 'qst\ring 2' -m=`"quoted\n string"`")raw");
+    CHECK("this is my \n\"quoted\" string" == str);  // escaped
+    CHECK("qst\\ring 2" == str2);                    // literal
+    CHECK("\"quoted\\n string\"" == str3);           // double quoted literal
 }
 
 TEST_CASE_METHOD(TApp, "OneStringEqualVersionSingleStringQuotedMultipleWithEqual", "[app]") {

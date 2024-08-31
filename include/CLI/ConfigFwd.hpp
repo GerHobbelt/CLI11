@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <fstream>
 #include <iostream>
+#include <memory>
 #include <string>
 #include <vector>
 // [CLI11:public_includes:end]
@@ -29,7 +30,6 @@ struct ConfigItem {
 
     /// This is the name
     std::string name{};
-
     /// Listing of inputs
     std::vector<std::string> inputs{};
 
@@ -92,8 +92,8 @@ class ConfigBase : public Config {
     char valueDelimiter = '=';
     /// the character to use around strings
     char stringQuote = '"';
-    /// the character to use around single characters
-    char characterQuote = '\'';
+    /// the character to use around single characters and literal strings
+    char literalQuote = '\'';
     /// the maximum number of layers to allow
     uint8_t maximumLayers{255};
     /// the separator used to separator parent layers
@@ -133,7 +133,7 @@ class ConfigBase : public Config {
     /// Specify the quote characters used around strings and characters
     ConfigBase *quoteCharacter(char qString, char qChar) {
         stringQuote = qString;
-        characterQuote = qChar;
+        literalQuote = qChar;
         return this;
     }
     /// Specify the maximum number of parents

@@ -24,7 +24,10 @@ namespace CLI {
 // [CLI11:config_hpp:verbatim]
 namespace detail {
 
-std::string convert_arg_for_ini(const std::string &arg, char stringQuote = '"', char characterQuote = '\'');
+std::string convert_arg_for_ini(const std::string &arg,
+                                char stringQuote = '"',
+                                char literalQuote = '\'',
+                                bool disable_multi_line = false);
 
 /// Comma separated join, adds quotes if needed
 std::string ini_join(const std::vector<std::string> &args,
@@ -32,7 +35,9 @@ std::string ini_join(const std::vector<std::string> &args,
                      char arrayStart = '[',
                      char arrayEnd = ']',
                      char stringQuote = '"',
-                     char characterQuote = '\'');
+                     char literalQuote = '\'');
+
+void clean_name_string(std::string &name, const std::string &keyChars);
 
 std::vector<std::string> generate_parents(const std::string &section, std::string &name, char parentSeparator);
 
