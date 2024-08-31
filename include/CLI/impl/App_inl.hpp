@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2023, University of Cincinnati, developed by Henry Schreiner
+// Copyright (c) 2017-2024, University of Cincinnati, developed by Henry Schreiner
 // under NSF AWARD 1414736 and by the respective contributors.
 // All rights reserved.
 //
@@ -529,8 +529,6 @@ CLI11_INLINE void App::clear() {
     }
 }
 
-CLI11_INLINE void App::parse() { parse(argc(), argv()); }  // LCOV_EXCL_LINE
-
 CLI11_INLINE void App::parse(int argc, const char *const *argv) { parse_char_t(argc, argv); }
 CLI11_INLINE void App::parse(int argc, const wchar_t *const *argv) { parse_char_t(argc, argv); }
 
@@ -658,7 +656,7 @@ CLI11_INLINE int App::exit(const Error &e, std::ostream &out, std::ostream &err)
     }
 
     if(e.get_name() == "CallForVersion") {
-        out << e.what() << std::endl;
+        out << e.what() << '\n';
         return e.get_exit_code();
     }
 

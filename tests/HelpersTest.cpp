@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2023, University of Cincinnati, developed by Henry Schreiner
+// Copyright (c) 2017-2024, University of Cincinnati, developed by Henry Schreiner
 // under NSF AWARD 1414736 and by the respective contributors.
 // All rights reserved.
 //
@@ -309,15 +309,6 @@ TEST_CASE("StringTools: binaryStrings", "[helpers]") {
     result = CLI::detail::extract_binary_string(rstring);
     CHECK(result == "\\XEM\\X7K");
 }
-
-/// these are provided for compatibility with the char8_t for C++20 that breaks stuff
-std::string from_u8string(const std::string &s) { return s; }
-std::string from_u8string(std::string &&s) { return std::move(s); }
-#if defined(__cpp_lib_char8_t)
-std::string from_u8string(const std::u8string &s) { return std::string(s.begin(), s.end()); }
-#elif defined(__cpp_char8_t)
-std::string from_u8string(const char8_t *s) { return std::string(reinterpret_cast<const char *>(s)); }
-#endif
 
 TEST_CASE("StringTools: escapeConversion", "[helpers]") {
     CHECK(CLI::detail::remove_escaped_characters("test\\\"") == "test\"");
@@ -707,7 +698,7 @@ TEST_CASE("Validators: ProgramNameSplit", "[helpers]") {
     TempFile myfile{"program_name1.exe"};
     {
         std::ofstream out{myfile};
-        out << "useless string doesn't matter" << std::endl;
+        out << "useless string doesn't matter" << '\n';
     }
     auto res =
         CLI::detail::split_program_name(std::string("./") + std::string(myfile) + " this is a bunch of extra stuff  ");
@@ -717,7 +708,7 @@ TEST_CASE("Validators: ProgramNameSplit", "[helpers]") {
     TempFile myfile2{"program name1.exe"};
     {
         std::ofstream out{myfile2};
-        out << "useless string doesn't matter" << std::endl;
+        out << "useless string doesn't matter" << '\n';
     }
     res = CLI::detail::split_program_name(std::string("   ") + std::string("./") + std::string(myfile2) +
                                           "      this is a bunch of extra stuff  ");
@@ -983,7 +974,7 @@ TEST_CASE("AppHelper: Ofstream", "[helpers]") {
 
         {
             std::ofstream out{myfile};
-            out << "this is output" << std::endl;
+            out << "this is output" << '\n';
         }
 
         CHECK(CLI::ExistingFile(myfile).empty());

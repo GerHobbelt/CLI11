@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2023, University of Cincinnati, developed by Henry Schreiner
+// Copyright (c) 2017-2024, University of Cincinnati, developed by Henry Schreiner
 // under NSF AWARD 1414736 and by the respective contributors.
 // All rights reserved.
 //
@@ -41,8 +41,10 @@ TEST_CASE("app_fail") {
         try {
             app->parse(parseData);
         } catch(const CLI::ParseError & /*e*/) {
+            CHECK(true);
         }
     } catch(const CLI::ConstructionError & /*e*/) {
+        CHECK(true);
     }
 }
 
@@ -50,12 +52,13 @@ TEST_CASE("file_fail") {
     CLI::FuzzApp fuzzdata;
     auto app = fuzzdata.generateApp();
 
-    int index = GENERATE(range(1, 6));
+    int index = GENERATE(range(1, 9));
     auto parseData = loadFailureFile("fuzz_file_fail", index);
     std::stringstream out(parseData);
     try {
         app->parse_from_stream(out);
     } catch(const CLI::ParseError & /*e*/) {
+        CHECK(true);
     }
 }
 

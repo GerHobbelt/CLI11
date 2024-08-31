@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2023, University of Cincinnati, developed by Henry Schreiner
+// Copyright (c) 2017-2024, University of Cincinnati, developed by Henry Schreiner
 // under NSF AWARD 1414736 and by the respective contributors.
 // All rights reserved.
 //
@@ -623,11 +623,11 @@ CLI11_INLINE void Option::_reduce_results(results_t &out, const results_t &origi
     // {} is the indicator for an empty container
     if(out.empty()) {
         if(original.size() == 1 && original[0] == "{}" && get_items_expected_min() > 0) {
-            out.push_back("{}");
-            out.push_back("%%");
+            out.emplace_back("{}");
+            out.emplace_back("%%");
         }
     } else if(out.size() == 1 && out[0] == "{}" && get_items_expected_min() > 0) {
-        out.push_back("%%");
+        out.emplace_back("%%");
     }
 }
 

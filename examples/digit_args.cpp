@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2023, University of Cincinnati, developed by Henry Schreiner
+// Copyright (c) 2017-2024, University of Cincinnati, developed by Henry Schreiner
 // under NSF AWARD 1414736 and by the respective contributors.
 // All rights reserved.
 //
@@ -21,6 +21,6 @@ int main(int argc, const char **argv) {
 
     CLI11_PARSE(app, argc, argv);
 
-    std::cout << "value = " << val << std::endl;
+    std::cout << "value = " << val << '\n';
     return 0;
 }

@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2023, University of Cincinnati, developed by Henry Schreiner
+// Copyright (c) 2017-2024, University of Cincinnati, developed by Henry Schreiner
 // under NSF AWARD 1414736 and by the respective contributors.
 // All rights reserved.
 //
@@ -130,10 +130,10 @@ class ConfigBase : public Config {
         valueDelimiter = vSep;
         return this;
     }
-    /// Specify the quote characters used around strings and characters
-    ConfigBase *quoteCharacter(char qString, char qChar) {
+    /// Specify the quote characters used around strings and literal strings
+    ConfigBase *quoteCharacter(char qString, char literalChar) {
         stringQuote = qString;
-        literalQuote = qChar;
+        literalQuote = literalChar;
         return this;
     }
     /// Specify the maximum number of parents

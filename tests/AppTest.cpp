@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2023, University of Cincinnati, developed by Henry Schreiner
+// Copyright (c) 2017-2024, University of Cincinnati, developed by Henry Schreiner
 // under NSF AWARD 1414736 and by the respective contributors.
 // All rights reserved.
 //
@@ -12,6 +12,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <limits>
+#include <map>
 
 using Catch::Approx;
 
@@ -2627,24 +2628,6 @@ TEST_CASE("C20_compile", "simple") {
 
     app.parse("--flag");
     CHECK_FALSE(flag->empty());
-}
-
-// #14
-TEST_CASE("System Args", "[app]") {
-    const char *commandline = CLI11_SYSTEM_ARGS_EXE " 1234 false \"hello world\"";
-    int retval = std::system(commandline);
-
-    if(retval == -1) {
-        FAIL("Executable '" << commandline << "' reported different argc count");
-    }
-
-    if(retval > 0) {
-        FAIL("Executable '" << commandline << "' reported different argv at index " << (retval - 1));
-    }
-
-    if(retval != 0) {
-        FAIL("Executable '" << commandline << "' failed with an unknown return code");
-    }
 }
 
 // #845

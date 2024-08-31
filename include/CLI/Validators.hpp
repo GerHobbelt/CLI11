@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2023, University of Cincinnati, developed by Henry Schreiner
+// Copyright (c) 2017-2024, University of Cincinnati, developed by Henry Schreiner
 // under NSF AWARD 1414736 and by the respective contributors.
 // All rights reserved.
 //
@@ -218,6 +218,11 @@ class IPV4Validator : public Validator {
     IPV4Validator();
 };
 
+class EscapedStringTransformer : public Validator {
+  public:
+    EscapedStringTransformer();
+};
+
 }  // namespace detail
 
 // Static is not needed here, because global const implies static.
@@ -236,6 +241,9 @@ const detail::NonexistentPathValidator NonexistentPath;
 
 /// Check for an IP4 address
 const detail::IPV4Validator ValidIPV4;
+
+/// convert escaped characters into their associated values
+const detail::EscapedStringTransformer EscapedString;
 
 /// Validate the input as a particular type
 template <typename DesiredType> class TypeValidator : public Validator {
