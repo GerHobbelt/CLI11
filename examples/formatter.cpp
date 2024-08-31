@@ -14,7 +14,13 @@ class MyFormatter : public CLI::Formatter {
     std::string make_option_opts(const CLI::Option *) const override { return " OPTION"; }
 };
 
-int main(int argc, char **argv) {
+
+#if defined(BUILD_MONOLITHIC)
+#define main cli11_formatter_example_main
+#endif
+
+extern "C"
+int main(int argc, const char **argv) {
     CLI::App app;
     app.set_help_all_flag("--help-all", "Show all help");
 

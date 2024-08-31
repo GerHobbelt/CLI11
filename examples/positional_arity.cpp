@@ -8,7 +8,12 @@
 #include <iostream>
 #include <string>
 
-int main(int argc, char **argv) {
+#if defined(BUILD_MONOLITHIC)
+#define main cli11_positional_arity_example_main
+#endif
+
+extern "C"
+int main(int argc, const char **argv) {
 
     CLI::App app("test for positional arity");
 

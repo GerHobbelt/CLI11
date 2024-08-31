@@ -11,7 +11,12 @@
 
 enum class Level : int { High, Medium, Low };
 
-int main(int argc, char **argv) {
+#if defined(BUILD_MONOLITHIC)
+#define main cli11_enum_example_main
+#endif
+
+extern "C"
+int main(int argc, const char **argv) {
     CLI::App app;
 
     Level level{Level::Low};

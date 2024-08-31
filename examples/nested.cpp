@@ -7,7 +7,12 @@
 #include <CLI/CLI.hpp>
 #include <string>
 
-int main(int argc, char **argv) {
+#if defined(BUILD_MONOLITHIC)
+#define main cli11_nested_example_main
+#endif
+
+extern "C"
+int main(int argc, const char **argv) {
 
     CLI::App app("Vision Application");
     app.set_help_all_flag("--help-all", "Expand all help");
@@ -27,4 +32,6 @@ int main(int argc, char **argv) {
     mockcameraApp->add_option("-p,--path", mock_camera_path, "Path")->required()->check(CLI::ExistingPath);
 
     CLI11_PARSE(app, argc, argv);
+
+    return 0;
 }

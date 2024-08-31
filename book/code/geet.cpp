@@ -2,7 +2,12 @@
 
 #include <iostream>
 
-int main(int argc, char **argv) {
+#if defined(BUILD_MONOLITHIC)
+#define main cli11_geet_book_example_main
+#endif
+
+extern "C"
+int main(int argc, const char **argv) {
 
     /// [Intro]
     CLI::App app{"Geet, a command line git lookalike that does nothing"};

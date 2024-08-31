@@ -1,6 +1,11 @@
 #include "CLI/CLI.hpp"
 
-int main(int argc, char **argv) {
+#if defined(BUILD_MONOLITHIC)
+#define main cli11_simplest_book_example_main
+#endif
+
+extern "C"
+int main(int argc, const char **argv) {
     CLI::App app;
 
     // Add new options/flags here

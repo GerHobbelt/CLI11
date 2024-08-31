@@ -10,7 +10,13 @@
 #include <vector>
 
 // This example shows the usage of the retired and deprecated option helper methods
-int main(int argc, char **argv) {
+
+#if defined(BUILD_MONOLITHIC)
+#define main cli11_retired_example_main
+#endif
+
+extern "C"
+int main(int argc, const char **argv) {
 
     CLI::App app("example for retired/deprecated options");
     std::vector<int> x;

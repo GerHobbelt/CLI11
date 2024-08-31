@@ -7,7 +7,12 @@
 #include "subcommand_a.hpp"
 #include <CLI/CLI.hpp>
 
-int main(int argc, char **argv) {
+#if defined(BUILD_MONOLITHIC)
+#define main cli11_subcommand_example_main
+#endif
+
+extern "C"
+int main(int argc, const char **argv) {
     CLI::App app{"..."};
 
     // Call the setup functions for the subcommands.

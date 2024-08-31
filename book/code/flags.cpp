@@ -1,7 +1,12 @@
 #include "CLI/CLI.hpp"
 #include <iostream>
 
-int main(int argc, char **argv) {
+#if defined(BUILD_MONOLITHIC)
+#define main   cli11_flags_book_example_main
+#endif
+
+extern "C"
+int main(int argc, const char **argv) {
     using std::cout;
     using std::endl;
     CLI::App app{"Flag example program"};
@@ -33,4 +38,6 @@ int main(int argc, char **argv) {
     if(*flag_plain)
         cout << "Flag plain: " << flag_plain->count() << endl;
     /// [usage]
+
+    return 0;
 }

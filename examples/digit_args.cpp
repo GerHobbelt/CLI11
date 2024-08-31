@@ -7,7 +7,12 @@
 #include <CLI/CLI.hpp>
 #include <iostream>
 
-int main(int argc, char **argv) {
+#if defined(BUILD_MONOLITHIC)
+#define main cli11_digit_args_example_main
+#endif
+
+extern "C"
+int main(int argc, const char **argv) {
     CLI::App app;
 
     int val{0};

@@ -8,7 +8,12 @@
 #include <iostream>
 #include <string>
 
-int main(int argc, char **argv) {
+#if defined(BUILD_MONOLITHIC)
+#define main cli11_modhelp_example_main
+#endif
+
+extern "C"
+int main(int argc, const char **argv) {
     CLI::App test{R"raw(Modify the help print so that argument values are accessible.
 Note that this will not shortcut `->required` and other similar options.)raw"};
 

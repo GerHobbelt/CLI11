@@ -10,7 +10,12 @@
 #include <tuple>
 #include <vector>
 
-int main(int argc, char **argv) {
+#if defined(BUILD_MONOLITHIC)
+#define main cli11_inter_argument_order_example_main
+#endif
+
+extern "C"
+int main(int argc, const char **argv) {
     CLI::App app{"An app to practice mixing unlimited arguments, but still recover the original order."};
 
     std::vector<int> foos;
@@ -48,4 +53,6 @@ int main(int argc, char **argv) {
     for(auto &pair : keyval) {
         std::cout << pair.first << " : " << pair.second << std::endl;
     }
+
+    return 0;
 }

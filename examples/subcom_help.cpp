@@ -8,7 +8,12 @@
 #include <iostream>
 #include <string>
 
-int main(int argc, char *argv[]) {
+#if defined(BUILD_MONOLITHIC)
+#define main cli11_subcommand_help_example_main
+#endif
+
+extern "C"
+int main(int argc, const char **argv) {
     CLI::App cli_global{"Demo app"};
     auto &cli_sub = *cli_global.add_subcommand("sub", "Some subcommand");
     std::string sub_arg;

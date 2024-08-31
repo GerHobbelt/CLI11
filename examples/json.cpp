@@ -107,7 +107,12 @@ class ConfigJSON : public CLI::Config {
     }
 };
 
-int main(int argc, char **argv) {
+#if defined(BUILD_MONOLITHIC)
+#define main cli11_json_example_main
+#endif
+
+extern "C"
+int main(int argc, const char **argv) {
     CLI::App app;
     app.config_formatter(std::make_shared<ConfigJSON>());
 
@@ -120,4 +125,6 @@ int main(int argc, char **argv) {
     CLI11_PARSE(app, argc, argv);
 
     std::cout << app.config_to_str(true, true) << std::endl;
+
+    return 0;
 }

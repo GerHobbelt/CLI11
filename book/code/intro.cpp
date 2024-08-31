@@ -1,7 +1,12 @@
 #include "CLI/CLI.hpp"
 #include <iostream>
 
-int main(int argc, char **argv) {
+#if defined(BUILD_MONOLITHIC)
+#define main cli11_intro_book_example_main
+#endif
+
+extern "C"
+int main(int argc, const char **argv) {
     CLI::App app{"App description"};
 
     // Define options

@@ -30,7 +30,12 @@ bool lexical_cast(const std::string &input, Values<double> & /*v*/) {
 DoubleValues doubles;
 void argparse(CLI::Option_group *group) { group->add_option("--dv", doubles)->default_str("0"); }
 
-int main(int argc, char **argv) {
+#if defined(BUILD_MONOLITHIC)
+#define main cli11_custom_parse_example_main
+#endif
+
+extern "C"
+int main(int argc, const char **argv) {
     CLI::App app;
 
     argparse(app.add_option_group("param"));

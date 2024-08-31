@@ -10,7 +10,12 @@
 #include <iostream>
 #include <string>
 
-int main(int argc, const char *argv[]) {
+#if defined(BUILD_MONOLITHIC)
+#define main cli11_test_exe_example_main
+#endif
+
+extern "C"
+int main(int argc, const char **argv) {
 
     int logLevel{0};
     CLI::App app{"Test App"};
@@ -23,4 +28,6 @@ int main(int argc, const char *argv[]) {
     CLI11_PARSE(app, argc, argv);
 
     std::cout << "level: " << logLevel << std::endl;
+
+    return 0;
 }

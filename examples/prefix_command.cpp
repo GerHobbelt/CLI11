@@ -9,7 +9,12 @@
 #include <string>
 #include <vector>
 
-int main(int argc, char **argv) {
+#if defined(BUILD_MONOLITHIC)
+#define main cli11_prefix_command_example_main
+#endif
+
+extern "C"
+int main(int argc, const char **argv) {
 
     CLI::App app("Prefix command app");
     app.prefix_command();

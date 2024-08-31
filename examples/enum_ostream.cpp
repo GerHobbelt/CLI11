@@ -28,7 +28,12 @@ inline std::ostream &operator<<(std::ostream &os, const Level &level) {
     return os;
 }
 
-int main(int argc, char **argv) {
+#if defined(BUILD_MONOLITHIC)
+#define main cli11_enum_ostream_example_main
+#endif
+
+extern "C"
+int main(int argc, const char **argv) {
     CLI::App app;
 
     Level level{Level::Low};

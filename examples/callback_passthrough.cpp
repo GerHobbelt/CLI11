@@ -8,7 +8,12 @@
 #include <iostream>
 #include <string>
 
-int main(int argc, char **argv) {
+#if defined(BUILD_MONOLITHIC)
+#define main cli11_callback_passthrough_example_main
+#endif
+
+extern "C"
+int main(int argc, const char **argv) {
 
     CLI::App app("callback_passthrough");
     app.allow_extras();
@@ -25,4 +30,5 @@ int main(int argc, char **argv) {
 
     CLI11_PARSE(app, argc, argv);
     std::cout << "the value is now " << val << '\n';
+    return 0;
 }

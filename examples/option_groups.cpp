@@ -8,7 +8,12 @@
 #include <iostream>
 #include <string>
 
-int main(int argc, char **argv) {
+#if defined(BUILD_MONOLITHIC)
+#define main cli11_option_groups_example_main
+#endif
+
+extern "C"
+int main(int argc, const char **argv) {
 
     CLI::App app("data output specification");
     app.set_help_all_flag("--help-all", "Expand all help");
