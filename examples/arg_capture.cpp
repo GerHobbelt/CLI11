@@ -15,7 +15,13 @@ to capture all subsequent arguments along with an alias to make it appear as a r
 
 All the values after the "sub" or "--sub" are available in the remaining() method.
 */
-int main(int argc, const char *argv[]) {
+
+#if defined(BUILD_MONOLITHIC)
+#define main cli11_arg_capture_example_main
+#endif
+
+extern "C"
+int main(int argc, const char **argv) {
 
     int value{0};
     CLI::App app{"Test App"};
@@ -31,4 +37,5 @@ int main(int argc, const char *argv[]) {
         std::cout << aarg << " ";
     }
     std::cout << '\n';
+    return 0;
 }

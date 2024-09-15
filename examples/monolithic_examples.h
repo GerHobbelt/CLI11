@@ -15,6 +15,7 @@ int cli11_callback_passthrough_example_main(int argc, const char** argv);
 int cli11_config_app_example_main(int argc, const char** argv);
 int cli11_custom_parse_example_main(int argc, const char** argv);
 int cli11_digit_args_example_main(int argc, const char** argv);
+int cli11_arg_capture_example_main(int argc, const char **argv);
 int cli11_enum_example_main(int argc, const char** argv);
 int cli11_enum_ostream_example_main(int argc, const char** argv);
 int cli11_formatter_example_main(int argc, const char** argv);

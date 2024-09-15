@@ -19,6 +19,7 @@ MONOLITHIC_CMD_TABLE_START()
 { "config_app", { .fa = cli11_config_app_example_main } },
 { "custom_parse", { .fa = cli11_custom_parse_example_main } },
 { "digit_args", { .fa = cli11_digit_args_example_main } },
+{ "arg_capture", { .fa = cli11_arg_capture_example_main } },
 { "enum", { .fa = cli11_enum_example_main } },
 { "enum_ostream", { .fa = cli11_enum_ostream_example_main } },
 { "formatter", { .fa = cli11_formatter_example_main } },
