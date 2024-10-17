@@ -12,7 +12,7 @@
 
 #include <iostream>
 
-int main() {
+int main(void) {
     std::cout << "\nCLI11 information:\n";
 
     std::cout << "  C++ standard: ";

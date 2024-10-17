@@ -197,7 +197,7 @@ if(CMAKE_CXX_STANDARD GREATER 16)
 
   # Some platforms need to link to atomic
   file(WRITE "${CMAKE_BINARY_DIR}/test_atomic.cpp"
-       "#include <atomic>\n" "int main() { std::atomic<int64_t> i(0); i++; return 0; }\n")
+       "#include <atomic>\n" "int main(void) { std::atomic<int64_t> i(0); i++; return 0; }\n")
   try_compile(ATOMIC_BUILD_SUCCEEDED "${CMAKE_BINARY_DIR}" "${CMAKE_BINARY_DIR}/test_atomic.cpp")
   if(NOT ATOMIC_BUILD_SUCCEEDED)
     target_link_libraries(FuzzFailTest PRIVATE atomic)
