@@ -5,6 +5,10 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "app_helper.hpp"
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
 
 using vs_t = std::vector<std::string>;
 
@@ -826,6 +830,22 @@ TEST_CASE_METHOD(TApp, "RequiredPosInSubcommand", "[subcom]") {
 
     args = {};
     CHECK_THROWS_AS(run(), CLI::RequiredError);
+}
+
+// from  https://github.com/CLIUtils/CLI11/issues/1002
+TEST_CASE_METHOD(TApp, "ForcedSubcommandExclude", "[subcom]") {
+    auto *subcommand_1 = app.add_subcommand("sub_1");
+    std::string forced;
+    subcommand_1->add_flag_function("-f", [&forced](bool f) { forced = f ? "got true" : "got false"; })
+        ->force_callback();
+
+    auto *subcommand_2 = app.add_subcommand("sub2");
+
+    subcommand_1->excludes(subcommand_2);
+
+    args = {"sub2"};
+    CHECK_NOTHROW(run());
+    CHECK(forced == "got false");
 }
 
 TEST_CASE_METHOD(TApp, "invalidSubcommandName", "[subcom]") {

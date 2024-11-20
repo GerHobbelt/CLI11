@@ -20,6 +20,7 @@
 #include <tuple>
 #include <unordered_map>
 #include <utility>
+#include <vector>
 
 using Catch::Approx;
 
@@ -48,6 +49,11 @@ TEST_CASE("TypeTools: tuple", "[helpers]") {
     CHECK(v);
     v = CLI::detail::is_tuple_like<std::tuple<double, double, double>>::value;
     CHECK(v);
+}
+
+TEST_CASE("TypeTools: tuple_to_string", "[helpers]") {
+    std::pair<double, std::string> p1{0.999, "kWh"};
+    CHECK(CLI::detail::to_string(p1) == "[0.999,kWh]");
 }
 
 TEST_CASE("TypeTools: type_size", "[helpers]") {

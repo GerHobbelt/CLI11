@@ -8,6 +8,7 @@
 
 #include <complex>
 #include <cstdint>
+#include <string>
 
 using Catch::Approx;
 using cx = std::complex<double>;

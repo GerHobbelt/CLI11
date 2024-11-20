@@ -13,6 +13,10 @@
 #include <cstdlib>
 #include <limits>
 #include <map>
+#include <string>
+#include <tuple>
+#include <utility>
+#include <vector>
 
 using Catch::Approx;
 
@@ -476,6 +480,46 @@ TEST_CASE_METHOD(TApp, "OneIntFlagLike", "[app]") {
     CHECK(9 == val);
 }
 
+TEST_CASE_METHOD(TApp, "PairDefault", "[app]") {
+    std::pair<double, std::string> pr{57.5, "test"};
+    auto *opt = app.add_option("-i", pr)->expected(0, 2);
+    args = {"-i"};
+    run();
+    CHECK(app.count("-i") == 1u);
+
+    std::pair<double, std::string> pr2{92.5, "t2"};
+    opt->default_val(pr2);
+    run();
+    CHECK(pr == pr2);
+}
+
+TEST_CASE_METHOD(TApp, "TupleDefault", "[app]") {
+    std::tuple<double, std::string, int, std::string> pr{57.5, "test", 5, "total"};
+    auto *opt = app.add_option("-i", pr)->expected(0, 4);
+    args = {"-i"};
+    run();
+    CHECK(app.count("-i") == 1u);
+
+    std::tuple<double, std::string, int, std::string> pr2{99.5, "test2", 87, "total3"};
+    opt->default_val(pr2);
+    run();
+    CHECK(pr == pr2);
+}
+
+TEST_CASE_METHOD(TApp, "TupleComplex", "[app]") {
+    std::tuple<double, std::string, int, std::pair<std::string, std::string>> pr{57.5, "test", 5, {"total", "total2"}};
+    auto *opt = app.add_option("-i", pr)->expected(0, 4);
+    args = {"-i"};
+    run();
+    CHECK(app.count("-i") == 1u);
+
+    std::tuple<double, std::string, int, std::pair<std::string, std::string>> pr2{
+        99.5, "test2", 87, {"total3", "total4"}};
+    opt->default_val(pr2);
+    run();
+    CHECK(pr == pr2);
+}
+
 TEST_CASE_METHOD(TApp, "TogetherInt", "[app]") {
     int i{0};
     app.add_option("-i,--int", i);
@@ -662,6 +706,15 @@ TEST_CASE_METHOD(TApp, "singledash", "[app]") {
         std::string str = e.what();
         CHECK_THAT(str, Contains("one char"));
         CHECK_THAT(str, Contains("-!"));
+    } catch(...) {
+        CHECK(false);
+    }
+    app.allow_non_standard_option_names();
+    try {
+        app.add_option("-!I{am}bad");
+    } catch(const CLI::BadNameString &e) {
+        std::string str = e.what();
+        CHECK_THAT(str, Contains("!I{am}bad"));
     } catch(...) {
         CHECK(false);
     }
@@ -2389,6 +2442,45 @@ TEST_CASE_METHOD(TApp, "OrderedModifyingTransforms", "[app]") {
     run();
 
     CHECK(std::vector<std::string>({"one21", "two21"}) == val);
+}
+
+// non standard options
+TEST_CASE_METHOD(TApp, "nonStandardOptions", "[app]") {
+    std::string string1;
+    CHECK_THROWS_AS(app.add_option("-single", string1), CLI::BadNameString);
+    app.allow_non_standard_option_names();
+    CHECK(app.get_allow_non_standard_option_names());
+    app.add_option("-single", string1);
+    args = {"-single", "string1"};
+
+    run();
+
+    CHECK(string1 == "string1");
+}
+
+TEST_CASE_METHOD(TApp, "nonStandardOptions2", "[app]") {
+    std::vector<std::string> strings;
+    app.allow_non_standard_option_names();
+    app.add_option("-single,--single,-m", strings);
+    args = {"-single", "string1", "--single", "string2"};
+
+    run();
+
+    CHECK(strings == std::vector<std::string>{"string1", "string2"});
+}
+
+TEST_CASE_METHOD(TApp, "nonStandardOptionsIntersect", "[app]") {
+    std::vector<std::string> strings;
+    app.allow_non_standard_option_names();
+    app.add_option("-s,-t");
+    CHECK_THROWS_AS(app.add_option("-single,--single", strings), CLI::OptionAlreadyAdded);
+}
+
+TEST_CASE_METHOD(TApp, "nonStandardOptionsIntersect2", "[app]") {
+    std::vector<std::string> strings;
+    app.allow_non_standard_option_names();
+    app.add_option("-single,--single", strings);
+    CHECK_THROWS_AS(app.add_option("-s,-t"), CLI::OptionAlreadyAdded);
 }
 
 TEST_CASE_METHOD(TApp, "ThrowingTransform", "[app]") {
