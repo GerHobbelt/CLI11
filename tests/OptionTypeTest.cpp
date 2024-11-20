@@ -282,6 +282,8 @@ static const std::map<std::string, std::int64_t> testValuesInt{
     {"-995'862'275", -995862275},
     {"0b11010110", 0xD6},
     {"0b1101'0110", 0xD6},
+    {"0B11010110", 0xD6},
+    {"0B1101'0110", 0xD6},
     {"1_2_3_4_5", 12345},
 };
 
@@ -311,6 +313,10 @@ TEST_CASE_METHOD(TApp, "intConversionsErange", "[optiontype]") {
     args = {"--val", "0b1011000001101011001100110011111000101010101011111111111111111111111001010111011100"};
 
     CHECK_THROWS_AS(run(), CLI::ParseError);
+
+    args = {"--val", "0B1011000001101011001100110011111000101010101011111111111111111111111001010111011100"};
+
+    CHECK_THROWS_AS(run(), CLI::ParseError);
 }
 
 static const std::map<std::string, std::uint64_t> testValuesUInt{
@@ -331,6 +337,8 @@ static const std::map<std::string, std::uint64_t> testValuesUInt{
     {"995'862'275", 995862275},
     {"0b11010110", 0xD6},
     {"0b1101'0110", 0xD6},
+    {"0B11010110", 0xD6},
+    {"0B1101'0110", 0xD6},
     {"1_2_3_4_5", 12345},
 };
 
@@ -358,6 +366,10 @@ TEST_CASE_METHOD(TApp, "uintConversionsErange", "[optiontype]") {
     CHECK_THROWS_AS(run(), CLI::ParseError);
 
     args = {"--val", "0b1011000001101011001100110011111000101010101011111111111111111111111001010111011100"};
+
+    CHECK_THROWS_AS(run(), CLI::ParseError);
+
+    args = {"--val", "0B1011000001101011001100110011111000101010101011111111111111111111111001010111011100"};
 
     CHECK_THROWS_AS(run(), CLI::ParseError);
 }
