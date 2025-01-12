@@ -1,6 +1,7 @@
 #include "CLI/CLI.hpp"
 
 #include <iostream>
+#include "monolithic_examples.h"
 
 #if defined(BUILD_MONOLITHIC)
 #define main cli11_geet_book_example_main

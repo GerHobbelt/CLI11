@@ -6,6 +6,7 @@
 
 #include <CLI/CLI.hpp>
 #include <string>
+#include "monolithic_examples.h"
 
 #if defined(BUILD_MONOLITHIC)
 #define main cli11_nested_example_main

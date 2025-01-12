@@ -36,7 +36,7 @@ class TApp {
     }
 };
 
-CLI11_INLINE int fileClear(const std::string &name) { return std::remove(name.c_str()); }
+static CLI11_INLINE int fileClear(const std::string &name) { return std::remove(name.c_str()); }
 
 class TempFile {
     std::string _name{};
@@ -55,7 +55,7 @@ class TempFile {
     CLI11_NODISCARD const char *c_str() const { return _name.c_str(); }
 };
 
-inline void put_env(std::string name, std::string value) {
+static inline void put_env(std::string name, std::string value) {
 #ifdef _WIN32
     _putenv_s(name.c_str(), value.c_str());
 #else
@@ -63,7 +63,7 @@ inline void put_env(std::string name, std::string value) {
 #endif
 }
 
-inline void unset_env(std::string name) {
+static inline void unset_env(std::string name) {
 #ifdef _WIN32
     _putenv_s(name.c_str(), "");
 #else
@@ -72,15 +72,15 @@ inline void unset_env(std::string name) {
 }
 
 /// these are provided for compatibility with the char8_t for C++20 that breaks stuff
-CLI11_INLINE std::string from_u8string(const std::string &s) { return s; }
-CLI11_INLINE std::string from_u8string(std::string &&s) { return std::move(s); }
+static CLI11_INLINE std::string from_u8string(const std::string &s) { return s; }
+static CLI11_INLINE std::string from_u8string(std::string &&s) { return std::move(s); }
 #if defined(__cpp_lib_char8_t)
-CLI11_INLINE std::string from_u8string(const std::u8string &s) { return std::string(s.begin(), s.end()); }
+static CLI11_INLINE std::string from_u8string(const std::u8string &s) { return std::string(s.begin(), s.end()); }
 #elif defined(__cpp_char8_t)
-CLI11_INLINE std::string from_u8string(const char8_t *s) { return std::string(reinterpret_cast<const char *>(s)); }
+static CLI11_INLINE std::string from_u8string(const char8_t *s) { return std::string(reinterpret_cast<const char *>(s)); }
 #endif
 
-CLI11_INLINE void check_identical_files(const char *path1, const char *path2) {
+static CLI11_INLINE void check_identical_files(const char *path1, const char *path2) {
     std::string err1 = CLI::ExistingFile(path1);
     if(!err1.empty()) {
         FAIL("Could not open " << path1 << ": " << err1);

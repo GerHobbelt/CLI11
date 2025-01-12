@@ -8,6 +8,7 @@
 #include <iostream>
 #include <utility>
 #include <vector>
+#include "monolithic_examples.h"
 
 // This example shows the usage of the retired and deprecated option helper methods
 

@@ -9,6 +9,7 @@
 #include <iostream>
 #include <memory>
 #include <string>
+#include "monolithic_examples.h"
 
 #if defined(BUILD_MONOLITHIC)
 #define main cli11_subcommand_partitioned_example_main

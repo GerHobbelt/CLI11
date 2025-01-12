@@ -8,6 +8,7 @@
 #include <iostream>
 #include <map>
 #include <string>
+#include "monolithic_examples.h"
 
 enum class Level : int { High, Medium, Low };
 

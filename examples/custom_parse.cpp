@@ -10,8 +10,11 @@
 #include <iostream>
 #include <sstream>
 #include <string>
+#include "monolithic_examples.h"
 
 // example file to demonstrate a custom lexical cast function
+
+namespace {
 
 template <class T = int> struct Values {
     T a;
@@ -30,6 +33,8 @@ bool lexical_cast(const std::string &input, Values<double> & /*v*/) {
 
 DoubleValues doubles;
 void argparse(CLI::Option_group *group) { group->add_option("--dv", doubles)->default_str("0"); }
+
+}  // namespace
 
 #if defined(BUILD_MONOLITHIC)
 #define main cli11_custom_parse_example_main

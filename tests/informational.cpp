@@ -11,7 +11,13 @@
 #endif
 
 #include <iostream>
+#include "monolithic_examples.h"
 
+#if defined(BUILD_MONOLITHIC)
+#define main cli11_informational_test_main
+#endif
+
+extern "C"
 int main(void) {
     std::cout << "\nCLI11 information:\n";
 
@@ -53,4 +59,6 @@ int main(void) {
 #endif
 
     std::cout << '\n';
+
+    return EXIT_SUCCESS;
 }

@@ -8,6 +8,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include "monolithic_examples.h"
 
 #if defined(BUILD_MONOLITHIC)
 #define main cli11_prefix_command_example_main

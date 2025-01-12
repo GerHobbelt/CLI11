@@ -2769,6 +2769,8 @@ TEST_CASE("C20_compile", "simple") {
     CHECK_FALSE(flag->empty());
 }
 
+#if defined(CLI11_ENSURE_UTF8_EXE)
+
 // #845
 TEST_CASE("Ensure UTF-8", "[app]") {
     const char *commandline = CLI11_ENSURE_UTF8_EXE " 1234 false \"hello world\"";
@@ -2787,6 +2789,10 @@ TEST_CASE("Ensure UTF-8", "[app]") {
     }
 }
 
+#endif
+
+#if defined(CLI11_ENSURE_UTF8_TWICE_EXE)
+
 // #845
 TEST_CASE("Ensure UTF-8 called twice", "[app]") {
     const char *commandline = CLI11_ENSURE_UTF8_TWICE_EXE " 1234 false \"hello world\"";
@@ -2804,3 +2810,5 @@ TEST_CASE("Ensure UTF-8 called twice", "[app]") {
         FAIL("Executable '" << commandline << "' failed with an unknown return code");
     }
 }
+
+#endif

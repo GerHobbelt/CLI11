@@ -6,8 +6,13 @@
 
 #include <CLI/CLI.hpp>
 #include <string>
+#include "monolithic_examples.h"
 
-int main(int argc, char **argv) {
+#if defined(BUILD_MONOLITHIC)
+#define main cli11_help_usage_example_main
+#endif
+
+extern "C" int main(int argc, const char **argv) {
     std::string input_file_name, output_file_name;
     int level{5}, subopt{0};
 

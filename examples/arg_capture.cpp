@@ -9,6 +9,7 @@
 #include <CLI/CLI.hpp>
 #include <iostream>
 #include <string>
+#include "monolithic_examples.h"
 
 /** This example demonstrates the use of `prefix_command` on a subcommand
 to capture all subsequent arguments along with an alias to make it appear as a regular options.

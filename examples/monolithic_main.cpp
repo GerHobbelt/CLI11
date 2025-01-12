@@ -15,15 +15,17 @@ MONOLITHIC_CMD_TABLE_START()
 { "geet_book", { .fa = cli11_geet_book_example_main } },
 { "intro_book", { .fa = cli11_intro_book_example_main } },
 { "simplest_book", { .fa = cli11_simplest_book_example_main } },
+
+{ "arg_capture", { .fa = cli11_arg_capture_example_main } },
 { "callback_passthrough", { .fa = cli11_callback_passthrough_example_main } },
 { "config_app", { .fa = cli11_config_app_example_main } },
 { "custom_parse", { .fa = cli11_custom_parse_example_main } },
 { "digit_args", { .fa = cli11_digit_args_example_main } },
-{ "arg_capture", { .fa = cli11_arg_capture_example_main } },
 { "enum", { .fa = cli11_enum_example_main } },
 { "enum_ostream", { .fa = cli11_enum_ostream_example_main } },
 { "formatter", { .fa = cli11_formatter_example_main } },
 { "groups", { .fa = cli11_groups_example_main } },
+{ "help_usage", { .fa = cli11_help_usage_example_main } },
 { "inter_argument_order", { .fa = cli11_inter_argument_order_example_main } },
 { "json", { .fa = cli11_json_example_main } },
 { "modhelp", { .fa = cli11_modhelp_example_main } },
@@ -42,6 +44,11 @@ MONOLITHIC_CMD_TABLE_START()
 { "subcommand_partitioned", { .fa = cli11_subcommand_partitioned_example_main } },
 { "test_exe", { .fa = cli11_test_exe_example_main } },
 { "validators", { .fa = cli11_validators_example_main } },
+
+{ "ensure_utf8", { .fa = cli11_ensure_utf8_example_main }},
+{ "ensure_utf8_twice", { .fa = cli11_ensure_utf8_twice_example_main }},
+{ "meson", { .fa = cli11_meson_example_main } },
+{ "informational_test", { .f = cli11_informational_test_main } },
 
 MONOLITHIC_CMD_TABLE_END();
 

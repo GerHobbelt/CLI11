@@ -38,6 +38,15 @@ int cli11_subcommand_example_main(int argc, const char** argv);
 int cli11_subcommand_partitioned_example_main(int argc, const char** argv);
 int cli11_test_exe_example_main(int argc, const char** argv);
 int cli11_validators_example_main(int argc, const char** argv);
+int cli11_help_usage_example_main(int argc, const char **argv);
+
+int cli11_ensure_utf8_example_main(int argc, const char **argv);
+int cli11_ensure_utf8_twice_example_main(int argc, const char **argv);
+int cli11_meson_example_main(int argc, const char **argv);
+
+int cli11_informational_test_main(void);
+
+
 
 #ifdef __cplusplus
 }

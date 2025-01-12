@@ -8,6 +8,7 @@
 #include <CLI/Timer.hpp>
 #include <iostream>
 #include <string>
+#include "monolithic_examples.h"
 
 
 #if defined(BUILD_MONOLITHIC)

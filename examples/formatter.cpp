@@ -8,6 +8,7 @@
 #include <iostream>
 #include <memory>
 #include <string>
+#include "monolithic_examples.h"
 
 class MyFormatter : public CLI::Formatter {
   public:

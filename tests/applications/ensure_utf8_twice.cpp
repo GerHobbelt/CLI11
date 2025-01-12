@@ -7,27 +7,34 @@
 #include <CLI/CLI.hpp>
 #include <cstring>
 #include <iostream>
+#include "monolithic_examples.h"
 
-int main(int argc, char **argv) {
+#if defined(BUILD_MONOLITHIC)
+#define main cli11_ensure_utf8_twice_example_main
+#endif
+
+extern "C"
+int main(int argc, const char **argv) {
     CLI::App app{"App description"};
-    char **original_argv = argv;
-    argv = app.ensure_utf8(argv);
-    argv = app.ensure_utf8(argv);  // completely useless but works ok
+    const char **original_argv = argv;
+    char **argve = const_cast<char **>(argv);
+    argve = app.ensure_utf8(argve);
+    argve = app.ensure_utf8(argve);  // completely useless but works ok
 
 #ifdef _WIN32
     for(int i = 0; i < argc; i++) {
-        if(std::strcmp(argv[i], original_argv[i]) != 0) {
-            std::cerr << argv[i] << "\n";
+        if(std::strcmp(argve[i], original_argv[i]) != 0) {
+            std::cerr << argve[i] << "\n";
             std::cerr << original_argv[i] << "\n";
             return i + 1;
         }
-        argv[i][0] = 'x';  // access it to check that it is accessible
+        argve[i][0] = 'x';  // access it to check that it is accessible
     }
 
 #else
     (void)argc;
 
-    if(original_argv != argv) {
+    if(original_argv != argve) {
         return -1;
     }
 #endif

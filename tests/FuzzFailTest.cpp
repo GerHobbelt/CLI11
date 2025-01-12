@@ -8,11 +8,19 @@
 #include "app_helper.hpp"
 #include <string>
 #include <vector>
+#include <filesystem>
+
+// hacky fix/tweak for monolithic builds:
+#ifndef TEST_FILE_FOLDER
+#define TEST_FILE_FOLDER "cli11/tests"
+#endif
 
 std::string loadFailureFile(const std::string &type, int index) {
     std::string fileName(TEST_FILE_FOLDER "/fuzzFail/");
     fileName.append(type);
     fileName += std::to_string(index);
+    if(!std::filesystem::exists(fileName))
+        throw std::invalid_argument("file does not exist: " + fileName);
     std::ifstream crashFile(fileName, std::ios::in | std::ios::binary);
     if(crashFile) {
         std::vector<char> buffer(std::istreambuf_iterator<char>(crashFile), {});

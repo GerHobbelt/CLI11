@@ -10,6 +10,7 @@
 #include <nlohmann/json.hpp>
 #include <string>
 #include <vector>
+#include "monolithic_examples.h"
 
 // This example is only built on GCC 7 on Travis due to mismatch in stdlib
 // for clang (CLI11 is forgiving about mismatches, json.hpp is not)

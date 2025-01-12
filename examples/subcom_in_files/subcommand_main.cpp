@@ -6,6 +6,7 @@
 
 #include "subcommand_a.hpp"
 #include <CLI/CLI.hpp>
+#include "monolithic_examples.h"
 
 #if defined(BUILD_MONOLITHIC)
 #define main cli11_subcommand_example_main

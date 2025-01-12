@@ -10,6 +10,7 @@
 #include <string>
 #include <tuple>
 #include <vector>
+#include "monolithic_examples.h"
 
 #if defined(BUILD_MONOLITHIC)
 #define main cli11_inter_argument_order_example_main
