@@ -1,4 +1,4 @@
-// Copyright (c) 2017-2024, University of Cincinnati, developed by Henry Schreiner
+// Copyright (c) 2017-2025, University of Cincinnati, developed by Henry Schreiner
 // under NSF AWARD 1414736 and by the respective contributors.
 // All rights reserved.
 //
@@ -1385,7 +1385,7 @@ bool lexical_assign(const std::string &input, AssignTo &output) {
     }
 
     return lexical_cast(input, output);
-}
+}  // LCOV_EXCL_LINE
 
 /// Assign a value through lexical cast operations
 template <typename AssignTo,
