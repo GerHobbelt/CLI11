@@ -128,7 +128,7 @@ namespace detail {
 
 #if defined CLI11_HAS_FILESYSTEM && CLI11_HAS_FILESYSTEM > 0
 CLI11_INLINE path_type check_path(const char *file) noexcept {
-    std::error_code ec;
+    std::error_code ec(0, std::generic_category());
     auto stat = std::filesystem::status(to_path(file), ec);
     if(ec) {
         return path_type::nonexistent;
