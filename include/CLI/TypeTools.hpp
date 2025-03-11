@@ -295,8 +295,9 @@ template <typename T>
 struct is_wrapper<T, conditional_t<false, void_t<typename T::value_type>, void>> : public std::true_type {};
 
 // Check for tuple like types, as in classes with a tuple_size type trait
+// Even though in C++26 std::complex gains a std::tuple interface, for our purposes we treat is as NOT a tuple
 template <typename S> class is_tuple_like {
-    template <typename SS>
+    template <typename SS, enable_if_t<!is_complex<SS>::value, detail::enabler> = detail::dummy>
     // static auto test(int)
     //     -> decltype(std::conditional<(std::tuple_size<SS>::value > 0), std::true_type, std::false_type>::type());
     static auto test(int) -> decltype(std::tuple_size<typename std::decay<SS>::type>::value, std::true_type{});
@@ -967,6 +968,9 @@ bool integral_conversion(const std::string &input, T &output) noexcept {
         nstring.erase(std::remove(nstring.begin(), nstring.end(), '\''), nstring.end());
         return integral_conversion(nstring, output);
     }
+    if(std::isspace(static_cast<unsigned char>(input.back()))) {
+        return integral_conversion(trim_copy(input), output);
+    }
     if(input.compare(0, 2, "0o") == 0 || input.compare(0, 2, "0O") == 0) {
         val = nullptr;
         errno = 0;
@@ -1015,12 +1019,15 @@ bool integral_conversion(const std::string &input, T &output) noexcept {
         output = static_cast<T>(1);
         return true;
     }
-    // remove separators
+    // remove separators and trailing spaces
     if(input.find_first_of("_'") != std::string::npos) {
         std::string nstring = input;
         nstring.erase(std::remove(nstring.begin(), nstring.end(), '_'), nstring.end());
         nstring.erase(std::remove(nstring.begin(), nstring.end(), '\''), nstring.end());
         return integral_conversion(nstring, output);
+    }
+    if(std::isspace(static_cast<unsigned char>(input.back()))) {
+        return integral_conversion(trim_copy(input), output);
     }
     if(input.compare(0, 2, "0o") == 0 || input.compare(0, 2, "0O") == 0) {
         val = nullptr;
@@ -1146,6 +1153,13 @@ bool lexical_cast(const std::string &input, T &output) {
     if(val == (input.c_str() + input.size())) {
         return true;
     }
+    while(std::isspace(static_cast<unsigned char>(*val))) {
+        ++val;
+        if(val == (input.c_str() + input.size())) {
+            return true;
+        }
+    }
+
     // remove separators
     if(input.find_first_of("_'") != std::string::npos) {
         std::string nstring = input;
