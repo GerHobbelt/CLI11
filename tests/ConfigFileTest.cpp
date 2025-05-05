@@ -14,6 +14,8 @@
 #include <tuple>
 #include <vector>
 
+#include <array>
+
 TEST_CASE("StringBased: convert_arg_for_ini", "[config]") {
 
     CHECK("\"\"" == CLI::detail::convert_arg_for_ini(std::string{}));
@@ -1590,7 +1592,6 @@ TEST_CASE_METHOD(TApp, "TOMLVectorVector", "[config]") {
 
     run();
 
-    auto str = app.config_to_str();
     CHECK(two == std::vector<std::vector<int>>({{1, 2, 3}, {4, 5, 6}}));
     CHECK(three == std::vector<int>({1, 2, 3, 4, 5, 6}));
     CHECK(four == std::vector<int>({1, 2, 3, 4, 5, 6, 7, 8}));
@@ -1621,7 +1622,6 @@ TEST_CASE_METHOD(TApp, "TOMLVectorVectorSeparated", "[config]") {
 
     run();
 
-    auto str = app.config_to_str();
     CHECK(two == std::vector<std::vector<int>>({{1, 2, 3}, {4, 5, 6}}));
     CHECK(three == std::vector<int>({1, 2, 3, 4, 5, 6}));
 }
@@ -1653,7 +1653,6 @@ TEST_CASE_METHOD(TApp, "TOMLVectorVectorSeparatedSingleElement", "[config]") {
 
     run();
 
-    auto str = app.config_to_str();
     CHECK(two == std::vector<std::vector<int>>({{1}, {2}, {3}}));
     CHECK(three == std::vector<int>({1, 4, 5}));
 }
@@ -4116,4 +4115,21 @@ TEST_CASE_METHOD(TApp, "RoundTripEmptyVector", "[config]") {
     std::stringstream out(configOut);
     app.parse_from_stream(out);
     CHECK(cv.empty());
+}
+
+TEST_CASE_METHOD(TApp, "RoundTripArrayFloat", "[config]") {
+    std::array<float, 2> cv{-1.0F, 1.0F};
+    app.add_option("-c", cv)->capture_default_str();
+
+    args = {};
+
+    run();
+    std::string configOut = app.config_to_str(true, true);
+    app.clear();
+    std::stringstream out(configOut);
+    cv[0] = -3.0F;
+    cv[1] = 4.0F;
+    app.parse_from_stream(out);
+    CHECK(cv[0] == -1.0F);
+    CHECK(cv[1] == 1.0F);
 }

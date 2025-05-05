@@ -10,6 +10,7 @@
 #include <string>
 #include "monolithic_examples.h"
 
+// NOLINTNEXTLINE
 enum class Level : int { High, Medium, Low };
 
 #if defined(BUILD_MONOLITHIC)
