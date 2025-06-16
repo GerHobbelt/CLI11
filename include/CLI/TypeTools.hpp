@@ -961,13 +961,18 @@ bool integral_conversion(const std::string &input, T &output) noexcept {
         output = (output_sll < 0) ? static_cast<T>(0) : static_cast<T>(output_sll);
         return (static_cast<std::int64_t>(output) == output_sll);
     }
-    // remove separators
-    if(input.find_first_of("_'") != std::string::npos) {
+    // remove separators if present
+    auto group_separators = get_group_separators();
+    if(input.find_first_of(group_separators) != std::string::npos) {
         std::string nstring = input;
-        nstring.erase(std::remove(nstring.begin(), nstring.end(), '_'), nstring.end());
-        nstring.erase(std::remove(nstring.begin(), nstring.end(), '\''), nstring.end());
+        for(auto &separator : group_separators) {
+            if(input.find_first_of(separator) != std::string::npos) {
+                nstring.erase(std::remove(nstring.begin(), nstring.end(), separator), nstring.end());
+            }
+        }
         return integral_conversion(nstring, output);
     }
+
     if(std::isspace(static_cast<unsigned char>(input.back()))) {
         return integral_conversion(trim_copy(input), output);
     }
@@ -1019,12 +1024,16 @@ bool integral_conversion(const std::string &input, T &output) noexcept {
         output = static_cast<T>(1);
         return true;
     }
-    // remove separators and trailing spaces
-    if(input.find_first_of("_'") != std::string::npos) {
-        std::string nstring = input;
-        nstring.erase(std::remove(nstring.begin(), nstring.end(), '_'), nstring.end());
-        nstring.erase(std::remove(nstring.begin(), nstring.end(), '\''), nstring.end());
-        return integral_conversion(nstring, output);
+    // remove separators if present
+    auto group_separators = get_group_separators();
+    if(input.find_first_of(group_separators) != std::string::npos) {
+        for(auto &separator : group_separators) {
+            if(input.find_first_of(separator) != std::string::npos) {
+                std::string nstring = input;
+                nstring.erase(std::remove(nstring.begin(), nstring.end(), separator), nstring.end());
+                return integral_conversion(nstring, output);
+            }
+        }
     }
     if(std::isspace(static_cast<unsigned char>(input.back()))) {
         return integral_conversion(trim_copy(input), output);
@@ -1160,12 +1169,16 @@ bool lexical_cast(const std::string &input, T &output) {
         }
     }
 
-    // remove separators
-    if(input.find_first_of("_'") != std::string::npos) {
-        std::string nstring = input;
-        nstring.erase(std::remove(nstring.begin(), nstring.end(), '_'), nstring.end());
-        nstring.erase(std::remove(nstring.begin(), nstring.end(), '\''), nstring.end());
-        return lexical_cast(nstring, output);
+    // remove separators if present
+    auto group_separators = get_group_separators();
+    if(input.find_first_of(group_separators) != std::string::npos) {
+        for(auto &separator : group_separators) {
+            if(input.find_first_of(separator) != std::string::npos) {
+                std::string nstring = input;
+                nstring.erase(std::remove(nstring.begin(), nstring.end(), separator), nstring.end());
+                return lexical_cast(nstring, output);
+            }
+        }
     }
     return false;
 }

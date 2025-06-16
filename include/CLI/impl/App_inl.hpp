@@ -57,6 +57,7 @@ CLI11_INLINE App::App(std::string app_description, std::string app_name, App *pa
         formatter_ = parent_->formatter_;
         config_formatter_ = parent_->config_formatter_;
         require_subcommand_max_ = parent_->require_subcommand_max_;
+        allow_prefix_matching_ = parent_->allow_prefix_matching_;
     }
 }
 
@@ -177,6 +178,12 @@ CLI11_INLINE Option *App::add_option(std::string option_name,
             auto *op = get_option_no_throw(test_name);
             if(op != nullptr && op->get_configurable()) {
                 throw(OptionAlreadyAdded("added option positional name matches existing option: " + test_name));
+            }
+            // need to check if there is another positional with the same name that also doesn't have any long or short
+            // names
+            op = get_option_no_throw(myopt.get_single_name());
+            if(op != nullptr && op->lnames_.empty() && op->snames_.empty()) {
+                throw(OptionAlreadyAdded("unable to disambiguate with existing option: " + test_name));
             }
         } else if(parent_ != nullptr) {
             for(auto &ln : myopt.lnames_) {
@@ -412,6 +419,8 @@ CLI11_INLINE bool App::remove_option(Option *opt) {
         help_ptr_ = nullptr;
     if(help_all_ptr_ == opt)
         help_all_ptr_ = nullptr;
+    if(config_ptr_ == opt)
+        config_ptr_ = nullptr;
 
     auto iterator =
         std::find_if(std::begin(options_), std::end(options_), [opt](const Option_p &v) { return v.get() == opt; });
@@ -894,6 +903,11 @@ CLI11_NODISCARD CLI11_INLINE std::string App::get_display_name(bool with_aliases
 }
 
 CLI11_NODISCARD CLI11_INLINE bool App::check_name(std::string name_to_check) const {
+    auto result = check_name_detail(std::move(name_to_check));
+    return (result != NameMatch::none);
+}
+
+CLI11_NODISCARD CLI11_INLINE App::NameMatch App::check_name_detail(std::string name_to_check) const {
     std::string local_name = name_;
     if(ignore_underscore_) {
         local_name = detail::remove_underscore(name_);
@@ -905,7 +919,12 @@ CLI11_NODISCARD CLI11_INLINE bool App::check_name(std::string name_to_check) con
     }
 
     if(local_name == name_to_check) {
-        return true;
+        return App::NameMatch::exact;
+    }
+    if(allow_prefix_matching_ && name_to_check.size() < local_name.size()) {
+        if(local_name.compare(0, name_to_check.size(), name_to_check) == 0) {
+            return App::NameMatch::prefix;
+        }
     }
     for(std::string les : aliases_) {  // NOLINT(performance-for-range-copy)
         if(ignore_underscore_) {
@@ -915,10 +934,15 @@ CLI11_NODISCARD CLI11_INLINE bool App::check_name(std::string name_to_check) con
             les = detail::to_lower(les);
         }
         if(les == name_to_check) {
-            return true;
+            return App::NameMatch::exact;
+        }
+        if(allow_prefix_matching_ && name_to_check.size() < les.size()) {
+            if(les.compare(0, name_to_check.size(), name_to_check) == 0) {
+                return App::NameMatch::prefix;
+            }
         }
     }
-    return false;
+    return App::NameMatch::none;
 }
 
 CLI11_NODISCARD CLI11_INLINE std::vector<std::string> App::get_groups() const {
@@ -1490,6 +1514,67 @@ CLI11_INLINE void App::_parse_config(const std::vector<ConfigItem> &args) {
     }
 }
 
+CLI11_INLINE bool
+App::_add_flag_like_result(Option *op, const ConfigItem &item, const std::vector<std::string> &inputs) {
+    if(item.inputs.size() <= 1) {
+        // Flag parsing
+        auto res = config_formatter_->to_flag(item);
+        bool converted{false};
+        if(op->get_disable_flag_override()) {
+            auto val = detail::to_flag_value(res);
+            if(val == 1) {
+                res = op->get_flag_value(item.name, "{}");
+                converted = true;
+            }
+        }
+
+        if(!converted) {
+            errno = 0;
+            if(res != "{}" || op->get_expected_max() <= 1) {
+                res = op->get_flag_value(item.name, res);
+            }
+        }
+
+        op->add_result(res);
+        return true;
+    }
+    if(static_cast<int>(inputs.size()) > op->get_items_expected_max() &&
+       op->get_multi_option_policy() != MultiOptionPolicy::TakeAll) {
+        if(op->get_items_expected_max() > 1) {
+            throw ArgumentMismatch::AtMost(item.fullname(), op->get_items_expected_max(), inputs.size());
+        }
+
+        if(!op->get_disable_flag_override()) {
+            throw ConversionError::TooManyInputsFlag(item.fullname());
+        }
+        // if the disable flag override is set then we must have the flag values match a known flag value
+        // this is true regardless of the output value, so an array input is possible and must be accounted for
+        for(const auto &res : inputs) {
+            bool valid_value{false};
+            if(op->default_flag_values_.empty()) {
+                if(res == "true" || res == "false" || res == "1" || res == "0") {
+                    valid_value = true;
+                }
+            } else {
+                for(const auto &valid_res : op->default_flag_values_) {
+                    if(valid_res.second == res) {
+                        valid_value = true;
+                        break;
+                    }
+                }
+            }
+
+            if(valid_value) {
+                op->add_result(res);
+            } else {
+                throw InvalidError("invalid flag argument given");
+            }
+        }
+        return true;
+    }
+    return false;
+}
+
 CLI11_INLINE bool App::_parse_single_config(const ConfigItem &item, std::size_t level) {
 
     if(level < item.parents.size()) {
@@ -1574,60 +1659,7 @@ CLI11_INLINE bool App::_parse_single_config(const ConfigItem &item, std::size_t 
         }
         const std::vector<std::string> &inputs = (useBuffer) ? buffer : item.inputs;
         if(op->get_expected_min() == 0) {
-            if(item.inputs.size() <= 1) {
-                // Flag parsing
-                auto res = config_formatter_->to_flag(item);
-                bool converted{false};
-                if(op->get_disable_flag_override()) {
-                    auto val = detail::to_flag_value(res);
-                    if(val == 1) {
-                        res = op->get_flag_value(item.name, "{}");
-                        converted = true;
-                    }
-                }
-
-                if(!converted) {
-                    errno = 0;
-                    if(res != "{}" || op->get_expected_max() <= 1) {
-                        res = op->get_flag_value(item.name, res);
-                    }
-                }
-
-                op->add_result(res);
-                return true;
-            }
-            if(static_cast<int>(inputs.size()) > op->get_items_expected_max() &&
-               op->get_multi_option_policy() != MultiOptionPolicy::TakeAll) {
-                if(op->get_items_expected_max() > 1) {
-                    throw ArgumentMismatch::AtMost(item.fullname(), op->get_items_expected_max(), inputs.size());
-                }
-
-                if(!op->get_disable_flag_override()) {
-                    throw ConversionError::TooManyInputsFlag(item.fullname());
-                }
-                // if the disable flag override is set then we must have the flag values match a known flag value
-                // this is true regardless of the output value, so an array input is possible and must be accounted for
-                for(const auto &res : inputs) {
-                    bool valid_value{false};
-                    if(op->default_flag_values_.empty()) {
-                        if(res == "true" || res == "false" || res == "1" || res == "0") {
-                            valid_value = true;
-                        }
-                    } else {
-                        for(const auto &valid_res : op->default_flag_values_) {
-                            if(valid_res.second == res) {
-                                valid_value = true;
-                                break;
-                            }
-                        }
-                    }
-
-                    if(valid_value) {
-                        op->add_result(res);
-                    } else {
-                        throw InvalidError("invalid flag argument given");
-                    }
-                }
+            if(_add_flag_like_result(op, item, inputs)) {
                 return true;
             }
         }
@@ -1756,9 +1788,20 @@ CLI11_INLINE bool App::_parse_positional(std::vector<std::string> &args, bool ha
         if(posOpt->get_trigger_on_parse() && posOpt->current_option_state_ == Option::option_state::callback_run) {
             posOpt->clear();
         }
-        posOpt->add_result(positional);
+        if(posOpt->get_expected_min() == 0) {
+            ConfigItem item;
+            item.name = posOpt->pname_;
+            item.inputs.push_back(positional);
+            // input is singular guaranteed to return true in that case
+            _add_flag_like_result(posOpt, item, item.inputs);
+        } else {
+            posOpt->add_result(positional);
+        }
+
         if(posOpt->get_trigger_on_parse()) {
-            posOpt->run_callback();
+            if(!posOpt->empty()) {
+                posOpt->run_callback();
+            }
         }
 
         args.pop_back();
@@ -1824,21 +1867,39 @@ CLI11_INLINE bool App::_parse_positional(std::vector<std::string> &args, bool ha
 
 CLI11_NODISCARD CLI11_INLINE App *
 App::_find_subcommand(const std::string &subc_name, bool ignore_disabled, bool ignore_used) const noexcept {
+    App *bcom{nullptr};
     for(const App_p &com : subcommands_) {
         if(com->disabled_ && ignore_disabled)
             continue;
         if(com->get_name().empty()) {
             auto *subc = com->_find_subcommand(subc_name, ignore_disabled, ignore_used);
             if(subc != nullptr) {
-                return subc;
+                if(bcom != nullptr) {
+                    return nullptr;
+                }
+                bcom = subc;
+                if(!allow_prefix_matching_) {
+                    return bcom;
+                }
             }
         }
-        if(com->check_name(subc_name)) {
-            if((!*com) || !ignore_used)
-                return com.get();
+        auto res = com->check_name_detail(subc_name);
+        if(res != NameMatch::none) {
+            if((!*com) || !ignore_used) {
+                if(res == NameMatch::exact) {
+                    return com.get();
+                }
+                if(bcom != nullptr) {
+                    return nullptr;
+                }
+                bcom = com.get();
+                if(!allow_prefix_matching_) {
+                    return bcom;
+                }
+            }
         }
     }
-    return nullptr;
+    return bcom;
 }
 
 CLI11_INLINE bool App::_parse_subcommand(std::vector<std::string> &args) {

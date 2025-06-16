@@ -86,7 +86,7 @@ CLI11_INLINE std::string &remove_outer(std::string &str, char key) {
 CLI11_INLINE std::string fix_newlines(const std::string &leader, std::string input) {
     std::string::size_type n = 0;
     while(n != std::string::npos && n < input.size()) {
-        n = input.find('\n', n);
+        n = input.find_first_of("\r\n", n);
         if(n != std::string::npos) {
             input = input.substr(0, n + 1) + leader + input.substr(n + 1);
             n += leader.size();
@@ -121,6 +121,15 @@ CLI11_INLINE bool valid_name_string(const std::string &str) {
         if(!valid_later_char(*c))
             return false;
     return true;
+}
+
+CLI11_INLINE std::string get_group_separators() {
+    std::string separators{"_'"};
+#if CLI11_HAS_RTTI != 0
+    char group_separator = std::use_facet<std::numpunct<char>>(std::locale()).thousands_sep();
+    separators.push_back(group_separator);
+#endif
+    return separators;
 }
 
 CLI11_INLINE std::string find_and_replace(std::string str, std::string from, std::string to) {
@@ -422,7 +431,7 @@ CLI11_INLINE std::size_t escape_detect(std::string &str, std::size_t offset) {
     return offset + 1;
 }
 
-CLI11_INLINE std::string binary_escape_string(const std::string &string_to_escape) {
+CLI11_INLINE std::string binary_escape_string(const std::string &string_to_escape, bool force) {
     // s is our escaped output string
     std::string escaped_string{};
     // loop through all characters
@@ -449,7 +458,7 @@ CLI11_INLINE std::string binary_escape_string(const std::string &string_to_escap
             escaped_string.push_back(c);
         }
     }
-    if(escaped_string != string_to_escape) {
+    if(escaped_string != string_to_escape || force) {
         auto sqLoc = escaped_string.find('\'');
         while(sqLoc != std::string::npos) {
             escaped_string[sqLoc] = '\\';

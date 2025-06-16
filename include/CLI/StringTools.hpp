@@ -194,6 +194,10 @@ inline std::string remove_underscore(std::string str) {
     return str;
 }
 
+/// @brief  get valid group separators _' + local separator if different
+/// @return a string containing the group separators
+CLI11_INLINE std::string get_group_separators();
+
 /// Find and replace a substring with another substring
 CLI11_INLINE std::string find_and_replace(std::string str, std::string from, std::string to);
 
@@ -251,7 +255,7 @@ CLI11_INLINE std::string add_escaped_characters(const std::string &str);
 CLI11_INLINE std::string remove_escaped_characters(const std::string &str);
 
 /// generate a string with all non printable characters escaped to hex codes
-CLI11_INLINE std::string binary_escape_string(const std::string &string_to_escape);
+CLI11_INLINE std::string binary_escape_string(const std::string &string_to_escape, bool force = false);
 
 CLI11_INLINE bool is_binary_escaped_string(const std::string &escaped_string);
 
