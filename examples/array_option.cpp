@@ -9,8 +9,14 @@
 #include <CLI/CLI.hpp>
 #include <array>
 #include <iostream>
+#include "monolithic_examples.h"
 
-int main(int argc, char **argv) {
+#if defined(BUILD_MONOLITHIC)
+#define main cli11_array_option_example_main
+#endif
+
+extern "C"
+int main(int argc, const char **argv) {
     std::array<int, 2> a{0, 1};
     CLI::App app{"My app"};
     app.add_option("--a", a, "an array")->capture_default_str();

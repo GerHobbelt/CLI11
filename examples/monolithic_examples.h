@@ -43,6 +43,7 @@ int cli11_help_usage_example_main(int argc, const char **argv);
 int cli11_ensure_utf8_example_main(int argc, const char **argv);
 int cli11_ensure_utf8_twice_example_main(int argc, const char **argv);
 int cli11_meson_example_main(int argc, const char **argv);
+int cli11_array_option_example_main(int argc, const char **argv);
 
 int cli11_informational_test_main(void);
 

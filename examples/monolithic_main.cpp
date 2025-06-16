@@ -17,6 +17,7 @@ MONOLITHIC_CMD_TABLE_START()
 { "simplest_book", { .fa = cli11_simplest_book_example_main } },
 
 { "arg_capture", { .fa = cli11_arg_capture_example_main } },
+{ "array_option", { .fa = cli11_array_option_example_main } },
 { "callback_passthrough", { .fa = cli11_callback_passthrough_example_main } },
 { "config_app", { .fa = cli11_config_app_example_main } },
 { "custom_parse", { .fa = cli11_custom_parse_example_main } },
