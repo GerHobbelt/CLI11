@@ -91,7 +91,7 @@ void addSubcommandCloseMatchDetection(CLI::App *app, std::size_t minDistance = 3
 /** This example demonstrates the use of close match detection to detect invalid commands that are close matches to
  * existing ones
  */
-int main(int argc, const char *argv[]) {
+int main(int argc, const char **argv) {
 
     int value{0};
     CLI::App app{"App for testing prefix matching and close string matching"};
