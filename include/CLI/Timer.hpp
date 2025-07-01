@@ -83,11 +83,16 @@ class Timer {
         return out;
     }
 
-    /// This formats the numerical value for the time string
-    std::string make_time_str() const {  // NOLINT(modernize-use-nodiscard)
+    /// Return the number of elapsed seconds
+    double operator()() const { 
         time_point stop = clock::now();
         std::chrono::duration<double> elapsed = stop - start_;
-        double time = elapsed.count() / static_cast<double>(cycles);
+        return elapsed.count() / static_cast<double>(cycles);
+    }
+
+    /// This formats the numerical value for the time string
+    std::string make_time_str() const {  // NOLINT(modernize-use-nodiscard)
+        double time = this->operator()();
         return make_time_str(time);
     }
 
