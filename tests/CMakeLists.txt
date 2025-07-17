@@ -1,4 +1,4 @@
-if(CLI11_SANITIZERS AND ${CMAKE_VERSION} VERSION_GREATER "3.13.0")
+if(CLI11_SANITIZERS AND ${CMAKE_VERSION} VERSION_GREATER "3.15.0")
   message(STATUS "Using arsenm/sanitizers-cmake")
   FetchContent_Declare(
     sanitizers
@@ -6,11 +6,7 @@ if(CLI11_SANITIZERS AND ${CMAKE_VERSION} VERSION_GREATER "3.13.0")
     GIT_SHALLOW 1
     GIT_TAG 0573e2e)
 
-  FetchContent_GetProperties(sanitizers)
-
-  if(NOT sanitizers_POPULATED)
-    FetchContent_Populate(sanitizers)
-  endif()
+  FetchContent_MakeAvailable(sanitizers)
 
   list(APPEND CMAKE_MODULE_PATH "${sanitizers_SOURCE_DIR}/cmake")
 
@@ -139,6 +135,10 @@ function(add_dependent_application_definitions TARGET)
     string(TOUPPER ${APP} APP_UPPERCASE)
     target_compile_definitions(${TARGET}
                                PRIVATE CLI11_${APP_UPPERCASE}_EXE="$<TARGET_FILE:${APP}>")
+
+    if(WIN32)
+      target_link_libraries(${APP} PRIVATE Shell32)
+    endif()
   endforeach()
 endfunction()
 
