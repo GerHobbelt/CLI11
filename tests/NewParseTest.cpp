@@ -266,7 +266,8 @@ struct anotherstring {
 // argument-dependent lookup as outlined in the examples for spair and template badlywrapped.
 namespace CLI {
 namespace detail {
-template <> bool lexical_cast<anotherstring>(const std::string &input, anotherstring &output) {
+template <>
+inline bool lexical_cast<anotherstring>(const std::string &input, anotherstring &output) {
     bool result = lexical_cast(input, output.s);
     if(result)
         output.s += "!";

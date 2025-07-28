@@ -13,7 +13,7 @@
 using Catch::Approx;
 using cx = std::complex<double>;
 
-CLI::Option *
+static CLI::Option *
 add_option(CLI::App &app, std::string name, cx &variable, std::string description = "", bool defaulted = false) {
     CLI::callback_t fun = [&variable](CLI::results_t res) {
         double x = 0, y = 0;
@@ -77,12 +77,14 @@ TEST_CASE_METHOD(TApp, "DefaultedComplex", "[complex]") {
 // fail.  And if a clang compiler is using libstd++ then this will generate an error as well so this is just a check to
 // simplify compilation and prevent a much more complicated #if expression
 #include <regex>
+
 namespace CLI {
 namespace detail {
 
 // On MSVC and possibly some other new compilers this can be a free standing function without the template
 // specialization but this is compiler dependent
-template <> bool lexical_cast<std::complex<double>>(const std::string &input, std::complex<double> &output) {
+template <>
+inline bool lexical_cast<std::complex<double>>(const std::string &input, std::complex<double> &output) {
     // regular expression to handle complex numbers of various formats
     static const std::regex creg(
         R"(([+-]?(\d+(\.\d+)?|\.\d+)([eE][+-]?\d+)?)\s*([+-]\s*(\d+(\.\d+)?|\.\d+)([eE][+-]?\d+)?)[ji]*)");
