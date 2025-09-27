@@ -1510,6 +1510,57 @@ TEST_CASE_METHOD(TApp, "TOMLVector", "[config]") {
     CHECK(three == std::vector<int>({1, 2, 3}));
 }
 
+TEST_CASE_METHOD(TApp, "TOMLMultiLineVector", "[config]") {
+
+    TempFile tmptoml{"TestTomlTmp.toml"};
+
+    app.set_config("--config", tmptoml);
+
+    {
+        std::ofstream out{tmptoml};
+        out << "#this is a comment line\n";
+        out << "[default]\n";
+        out << "two=[\n";
+        out << "  2, 3\n";
+        out << "]\n";
+        out << "three=[\n\t1,\n\t2,\n\t3\n]\n";
+    }
+
+    std::vector<int> two, three;
+    app.add_option("--two", two)->expected(2)->required();
+    app.add_option("--three", three)->required();
+
+    run();
+
+    CHECK(two == std::vector<int>({2, 3}));
+    CHECK(three == std::vector<int>({1, 2, 3}));
+}
+
+TEST_CASE_METHOD(TApp, "TOMLMultiLineVector2", "[config]") {
+
+    TempFile tmptoml{"TestTomlTmp.toml"};
+
+    app.set_config("--config", tmptoml);
+
+    {
+        std::ofstream out{tmptoml};
+        out << "#this is a comment line\n";
+        out << "[default]\n";
+        out << "two=[\n";
+        out << "  2, 3]\n";
+        out << "three=[\n\t1,\n\t2,\n\t3\n]\n";
+    }
+
+    std::vector<int> two, three;
+    app.add_option("--two", two)->expected(2)->required();
+    app.add_option("--three", three)->required();
+
+    run();
+
+    CHECK(two == std::vector<int>({2, 3}));
+    CHECK(three == std::vector<int>({1, 2, 3}));
+}
+
 TEST_CASE_METHOD(TApp, "ColonValueSep", "[config]") {
 
     TempFile tmpini{"TestIniTmp.ini"};
@@ -1696,6 +1747,30 @@ TEST_CASE_METHOD(TApp, "TOMLStringVector", "[config]") {
     CHECK(zero4 == std::vector<std::string>({"{}"}));
     CHECK(nzero == std::vector<std::string>({"{}"}));
     CHECK(one == std::vector<std::string>({"1"}));
+    CHECK(two == std::vector<std::string>({"2", "3"}));
+    CHECK(three == std::vector<std::string>({"1", "2", "3"}));
+}
+
+TEST_CASE_METHOD(TApp, "TOMLStringVectorMultiline", "[config]") {
+
+    TempFile tmptoml{"TestTomlTmp.toml"};
+
+    app.set_config("--config", tmptoml);
+
+    {
+        std::ofstream out{tmptoml};
+        out << "#this is a comment line\n";
+        out << "[default]\n";
+        out << "two=[\n\t\t\"2\",\"3\"]\n";
+        out << "three=[\n    \"1\",\n    \"2\",\n    \"3\"\n]    \n";
+    }
+
+    std::vector<std::string> two, three;
+
+    app.add_option("--two", two)->required();
+    app.add_option("--three", three)->required();
+
+    run();
     CHECK(two == std::vector<std::string>({"2", "3"}));
     CHECK(three == std::vector<std::string>({"1", "2", "3"}));
 }
@@ -4132,4 +4207,25 @@ TEST_CASE_METHOD(TApp, "RoundTripArrayFloat", "[config]") {
     app.parse_from_stream(out);
     CHECK(cv[0] == -1.0F);
     CHECK(cv[1] == 1.0F);
+}
+
+// Code from https://github.com/CLIUtils/CLI11/issues/1197
+TEST_CASE_METHOD(TApp, "CrashTest", "[config]") {
+    args = {"spdlog", "--level=off"};
+
+    app.configurable()->allow_config_extras(false);
+    app.set_config("--conf")->check(CLI::ExistingFile);
+
+    std::string level;
+
+    auto *command = app.add_subcommand("spdlog");
+    command->add_option("--level", level, "Log level")->default_val("info");
+
+    run();
+
+    auto *ptr = app.get_config_ptr();
+    std::string conf_filename;
+    CHECK_NOTHROW(conf_filename = ptr->as<std::string>());
+    CHECK(conf_filename.empty());
+    CHECK(level == "off");
 }
