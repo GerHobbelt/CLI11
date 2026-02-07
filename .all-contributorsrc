@@ -914,6 +914,33 @@
       "contributions": [
         "doc"
       ]
+    },
+    {
+      "login": "The0Dev",
+      "name": "The0Dev",
+      "avatar_url": "https://avatars.githubusercontent.com/u/98645239?v=4",
+      "profile": "https://github.com/The0Dev",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "jaefunk",
+      "name": "jaefunk",
+      "avatar_url": "https://avatars.githubusercontent.com/u/8777543?v=4",
+      "profile": "https://github.com/jaefunk",
+      "contributions": [
+        "doc"
+      ]
+    },
+    {
+      "login": "mochaaP",
+      "name": "Zephyr Lykos",
+      "avatar_url": "https://avatars.githubusercontent.com/u/21154023?v=4",
+      "profile": "https://mochaa.ws/?utm_source=github_user",
+      "contributions": [
+        "platform"
+      ]
     }
   ],
   "contributorsSortAlphabetically": true,

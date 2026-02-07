@@ -5,18 +5,31 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "app_helper.hpp"
-#include <cmath>
 
 #include <array>
+#include <cmath>
 #include <complex>
 #include <cstdint>
-#include <cstdlib>
 #include <limits>
-#include <map>
 #include <string>
 #include <tuple>
 #include <utility>
 #include <vector>
+
+#ifdef _WIN32
+#define PLATFORM_TEXT(x) _PLATFORM_TEXT(x)
+#define _PLATFORM_TEXT(x) L##x
+using tchar = wchar_t;
+#include <process.h>
+#else
+#define PLATFORM_TEXT(x) x
+using tchar = char;
+#include <csignal>
+#include <cstring>
+#include <spawn.h>
+#include <sys/wait.h>
+#include <unistd.h>
+#endif
 
 using Catch::Approx;
 
@@ -2393,6 +2406,12 @@ TEST_CASE_METHOD(TApp, "AllowExtras", "[app]") {
     REQUIRE_NOTHROW(run());
     CHECK(val);
     CHECK(std::vector<std::string>({"-x"}) == app.remaining());
+
+    app.allow_extras(CLI::ExtrasMode::Ignore);
+    val = false;
+    REQUIRE_NOTHROW(run());
+    CHECK(val);
+    CHECK(app.remaining().empty());
 }
 
 TEST_CASE_METHOD(TApp, "AllowExtrasOrder", "[app]") {
@@ -2412,7 +2431,6 @@ TEST_CASE_METHOD(TApp, "AllowExtrasOrder", "[app]") {
 TEST_CASE_METHOD(TApp, "AllowExtrasCascade", "[app]") {
 
     app.allow_extras();
-
     args = {"-x", "45", "-f", "27"};
     REQUIRE_NOTHROW(run());
     CHECK(std::vector<std::string>({"-x", "45", "-f", "27"}) == app.remaining());
@@ -2428,6 +2446,70 @@ TEST_CASE_METHOD(TApp, "AllowExtrasCascade", "[app]") {
     capp.parse(left_over);
     CHECK(45 == v1);
     CHECK(27 == v2);
+}
+
+TEST_CASE_METHOD(TApp, "AllowExtrasAssumptions", "[app]") {
+
+    app.allow_extras(CLI::ExtrasMode::AssumeSingleArgument);
+
+    std::string one;
+    std::string two;
+    app.add_option("--one", one);
+    app.add_option("two", two);
+    args = {"--one", "45", "--three", "27", "this"};
+
+    REQUIRE_NOTHROW(run());
+    CHECK(one == "45");
+    CHECK(two == "this");
+    CHECK(app.remaining().size() == 2U);
+
+    two.clear();
+    app.allow_extras(CLI::ExtrasMode::AssumeMultipleArguments);
+
+    run();
+    CHECK(one == "45");
+    CHECK(two.empty());
+    CHECK(app.remaining().size() == 3U);
+    app.allow_extras(CLI::ExtrasMode::AssumeSingleArgument);
+    CHECK(app.get_allow_extras_mode() == CLI::ExtrasMode::AssumeSingleArgument);
+    args = {"--three", "27", "--one", "45", "this"};
+    run();
+    CHECK(one == "45");
+    CHECK(two == "this");
+    CHECK(app.remaining().size() == 2U);
+
+    app.allow_extras(CLI::ExtrasMode::AssumeMultipleArguments);
+    CHECK(app.get_allow_extras_mode() == CLI::ExtrasMode::AssumeMultipleArguments);
+    args = {"--three", "27", "extra", "--one", "45", "this"};
+    one.clear();
+    two.clear();
+    run();
+    CHECK(one == "45");
+    CHECK(two == "this");
+    CHECK(app.remaining().size() == 3U);
+}
+
+TEST_CASE_METHOD(TApp, "AllowExtrasImmediateError", "[app]") {
+
+    int v1{0};
+    int v2{0};
+    app.add_option("-f", v1)->trigger_on_parse();
+    app.add_option("-x", v2);
+    args = {"-x", "15", "-f", "17", "-g", "19"};
+    CHECK_THROWS_AS(run(), CLI::ExtrasError);
+    CHECK(v1 == 17);
+    CHECK(app.remaining().size() == 2U);
+    args = {"-x", "21", "-f", "23", "-g", "25"};
+    app.allow_extras(CLI::ExtrasMode::ErrorImmediately);
+    CHECK_THROWS_AS(run(), CLI::ExtrasError);
+    CHECK(v1 == 23);  // -f still triggers
+    CHECK(v2 == 15);
+    CHECK(app.remaining().empty());
+    args = {"-x", "27", "-g", "29", "-f", "31"};
+    CHECK_THROWS_AS(run(), CLI::ExtrasError);
+    CHECK(v1 == 23);  // -f did not trigger
+    CHECK(v2 == 15);
+    CHECK(app.remaining().empty());
 }
 
 TEST_CASE_METHOD(TApp, "PrefixCommand", "[app]") {
@@ -2482,8 +2564,6 @@ TEST_CASE_METHOD(TApp, "PrefixCommand", "[app]") {
 
 // makes sure the error throws on the rValue version of the parse
 TEST_CASE_METHOD(TApp, "ExtrasErrorRvalueParse", "[app]") {
-
-    args = {"-x", "45", "-f", "27"};
 
     CHECK_THROWS_AS(app.parse(std::vector<std::string>({"-x", "45", "-f", "27"})), CLI::ExtrasError);
 }
@@ -2914,23 +2994,92 @@ TEST_CASE("C20_compile", "simple") {
     CHECK_FALSE(flag->empty());
 }
 
+#ifdef _WIN32
+static int spawn_subprocess_win32(const wchar_t *path, wchar_t *commandline) {
+    STARTUPINFOW si{};
+    si.cb = sizeof(si);
+    PROCESS_INFORMATION pi{};
+    REQUIRE(CreateProcessW(path, commandline, nullptr, nullptr, FALSE, 0, nullptr, nullptr, &si, &pi));
+    WaitForSingleObject(pi.hProcess, INFINITE);
+
+    DWORD exitcode;  // NOLINT(cppcoreguidelines-init-variables)
+    REQUIRE(GetExitCodeProcess(pi.hProcess, &exitcode));
+
+    return static_cast<int>(exitcode);
+}
+#else
+static int spawn_subprocess_posix(const char *path, char *const *argv) {
+    // NOLINTBEGIN(cppcoreguidelines-init-variables)
+    pid_t pid;
+    sigset_t old, reset;
+    struct sigaction sa, oldint, oldquit;
+    std::memset(&sa, 0, sizeof(sa));
+    sa.sa_handler = SIG_IGN;
+    int status = -1, ret;
+    posix_spawnattr_t attr;
+    // NOLINTEND(cppcoreguidelines-init-variables)
+
+    pthread_testcancel();
+
+    sigaction(SIGINT, &sa, &oldint);
+    sigaction(SIGQUIT, &sa, &oldquit);
+    sigaddset(&sa.sa_mask, SIGCHLD);
+    sigprocmask(SIG_BLOCK, &sa.sa_mask, &old);
+
+    sigemptyset(&reset);
+    if(oldint.sa_handler != SIG_IGN)
+        sigaddset(&reset, SIGINT);
+    if(oldquit.sa_handler != SIG_IGN)
+        sigaddset(&reset, SIGQUIT);
+    posix_spawnattr_init(&attr);
+    posix_spawnattr_setsigmask(&attr, &old);
+    posix_spawnattr_setsigdefault(&attr, &reset);
+    posix_spawnattr_setflags(&attr, POSIX_SPAWN_SETSIGDEF | POSIX_SPAWN_SETSIGMASK);
+    CHECK((ret = posix_spawn(&pid, path, nullptr, &attr, argv, nullptr)) == 0);
+
+    if(ret == 0)
+        while(waitpid(pid, &status, 0) < 0 && errno != EINTR) {
+        }
+
+    sigaction(SIGINT, &oldint, nullptr);
+    sigaction(SIGQUIT, &oldquit, nullptr);
+    sigprocmask(SIG_SETMASK, &old, nullptr);
+
+    return status;
+}
+#endif
+
+static int spawn_app_exe(const tchar *path) {
+#ifdef _WIN32
+    std::wstring args{L"app_exe 1234 false \"hello world\""};
+    return spawn_subprocess_win32(path, &args[0]);
+#else
+    std::string arg0{"app_exe"};
+    std::string arg1{"1234"};
+    std::string arg2{"false"};
+    std::string arg3{"hello world"};
+    // NOLINTNEXTLINE(modernize-avoid-c-arrays)
+    char *const args[] = {&arg0[0], &arg1[0], &arg2[0], &arg3[0], nullptr};
+    return spawn_subprocess_posix(path, args);
+#endif
+}
+
 #if defined(CLI11_ENSURE_UTF8_EXE)
 
 // #845
 TEST_CASE("Ensure UTF-8", "[app]") {
-    const char *commandline = CLI11_ENSURE_UTF8_EXE " 1234 false \"hello world\"";
-    int retval = std::system(commandline);
+    auto retval = spawn_app_exe(PLATFORM_TEXT(CLI11_ENSURE_UTF8_EXE));
 
     if(retval == -1) {
-        FAIL("Executable '" << commandline << "' reported that argv pointer changed where it should not have been");
+        FAIL("Executable " CLI11_ENSURE_UTF8_EXE " reported that argv pointer changed where it should not have been");
     }
 
     if(retval > 0) {
-        FAIL("Executable '" << commandline << "' reported different argv at index " << (retval - 1));
+        FAIL("Executable " CLI11_ENSURE_UTF8_EXE " reported different argv at index " << (retval - 1));
     }
 
     if(retval != 0) {
-        FAIL("Executable '" << commandline << "' failed with an unknown return code");
+        FAIL("Executable " CLI11_ENSURE_UTF8_EXE " failed with an unknown return code");
     }
 }
 
@@ -2940,19 +3089,19 @@ TEST_CASE("Ensure UTF-8", "[app]") {
 
 // #845
 TEST_CASE("Ensure UTF-8 called twice", "[app]") {
-    const char *commandline = CLI11_ENSURE_UTF8_TWICE_EXE " 1234 false \"hello world\"";
-    int retval = std::system(commandline);
+    auto retval = spawn_app_exe(PLATFORM_TEXT(CLI11_ENSURE_UTF8_TWICE_EXE));
 
     if(retval == -1) {
-        FAIL("Executable '" << commandline << "' reported that argv pointer changed where it should not have been");
+        FAIL("Executable " CLI11_ENSURE_UTF8_TWICE_EXE
+             " reported that argv pointer changed where it should not have been");
     }
 
     if(retval > 0) {
-        FAIL("Executable '" << commandline << "' reported different argv at index " << (retval - 1));
+        FAIL("Executable " CLI11_ENSURE_UTF8_TWICE_EXE " reported different argv at index " << (retval - 1));
     }
 
     if(retval != 0) {
-        FAIL("Executable '" << commandline << "' failed with an unknown return code");
+        FAIL("Executable " CLI11_ENSURE_UTF8_TWICE_EXE " failed with an unknown return code");
     }
 }
 
