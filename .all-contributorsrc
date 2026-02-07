@@ -941,6 +941,25 @@
       "contributions": [
         "platform"
       ]
+    },
+    {
+      "login": "mikael-s-persson",
+      "name": "Mikael Persson",
+      "avatar_url": "https://avatars.githubusercontent.com/u/829640?v=4",
+      "profile": "https://www.linkedin.com/in/mikaelspersson1",
+      "contributions": [
+        "platform",
+        "infra"
+      ]
+    },
+    {
+      "login": "mikomikotaishi",
+      "name": "Miko",
+      "avatar_url": "https://avatars.githubusercontent.com/u/110693261?v=4",
+      "profile": "https://github.com/mikomikotaishi",
+      "contributions": [
+        "code"
+      ]
     }
   ],
   "contributorsSortAlphabetically": true,
