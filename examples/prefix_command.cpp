@@ -18,7 +18,7 @@ extern "C"
 int main(int argc, const char **argv) {
 
     CLI::App app("Prefix command app");
-    app.prefix_command();
+    app.prefix_command(CLI::PrefixCommandMode::On);
 
     std::vector<int> vals;
     app.add_option("--vals,-v", vals)->expected(-1);
