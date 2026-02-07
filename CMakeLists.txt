@@ -140,6 +140,7 @@ set(CLI11_headers
     ${CLI11_headerLoc}/StringTools.hpp
     ${CLI11_headerLoc}/TypeTools.hpp
     ${CLI11_headerLoc}/Validators.hpp
+    ${CLI11_headerLoc}/ExtraValidators.hpp
     ${CLI11_headerLoc}/Version.hpp
     ${CLI11_headerLoc}/Encoding.hpp
     ${CLI11_headerLoc}/Argv.hpp)
@@ -152,6 +153,7 @@ set(CLI11_impl_headers
     ${CLI11_headerLoc}/impl/Split_inl.hpp
     ${CLI11_headerLoc}/impl/StringTools_inl.hpp
     ${CLI11_headerLoc}/impl/Validators_inl.hpp
+    ${CLI11_headerLoc}/impl/ExtraValidators_inl.hpp
     ${CLI11_headerLoc}/impl/Encoding_inl.hpp
     ${CLI11_headerLoc}/impl/Argv_inl.hpp)
 
