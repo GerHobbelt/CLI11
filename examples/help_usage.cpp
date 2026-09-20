@@ -18,7 +18,8 @@ extern "C" int main(int argc, const char **argv) {
 
     // app caption
     CLI::App app{"CLI11 help"};
-
+    // this tests out some of the wide character support, mainly for compilation checking
+    argv = app.ensure_utf8(argv);
     app.require_subcommand(1);
     // subcommands options and flags
     CLI::App *const encode = app.add_subcommand("e", "encode")->ignore_case();  // ignore case
