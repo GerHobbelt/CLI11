@@ -30,7 +30,42 @@ jobs:
       - name: Configure
         run: cmake -S . -B build -DCLI11_CUDA_TESTS=ON
       - name: Build
-        run: cmake --build build -j2
+        run: cmake --build build -j4
+
+  cuda12-single-header-repro:
+    name: CUDA 12.6 single-header repro
+    runs-on: ubuntu-latest
+    container: nvidia/cuda:12.6.1-devel-ubuntu24.04
+    steps:
+      - name: Add build tools
+        run: apt-get update && apt-get install -y cmake git python3 time
+      - uses: actions/checkout@v4
+      - name: Configure single-header build
+        run: cmake -S . -B build -DCLI11_SINGLE_FILE=ON -DCLI11_BUILD_TESTS=OFF -DCLI11_BUILD_EXAMPLES=OFF
+      - name: Generate single header
+        run: cmake --build build --target CLI11-generate-single-file
+      - name: Create reproduction source
+        run: |
+          cat <<'EOF' > test.cu
+          #include "CLI11.hpp"
+          int main() { return 0; }
+          EOF
+      - name: Show reproduction source
+        run: cat test.cu
+      - name: Try reproducing nvcc single-header compile issue
+        id: repro
+        run: |
+          /usr/bin/time -v timeout --signal=KILL 3m nvcc test.cu -I "${GITHUB_WORKSPACE}/build/single-include" -o test_cu -std=c++20
+      - name: Summarize reproduction attempt
+        if: always()
+        run: |
+          if [ "${{ steps.repro.outcome }}" = "success" ]; then
+            echo "CUDA 12.6 single-header repro did not trigger; nvcc compiled the single header generated from this branch." >> "$GITHUB_STEP_SUMMARY"
+          elif [ "${{ steps.repro.outcome }}" = "skipped" ]; then
+            echo "CUDA 12.6 single-header repro did not run because an earlier setup step failed." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "CUDA 12.6 single-header repro triggered or timed out while compiling the single header generated from this branch." >> "$GITHUB_STEP_SUMMARY"
+          fi
 
   cuda13-build:
     name: CUDA 13 build only
@@ -45,7 +80,7 @@ jobs:
       - name: Configure
         run: cmake -S . -B build -DCLI11_CUDA_TESTS=ON
       - name: Build
-        run: cmake --build build -j2
+        run: cmake --build build -j4
 
   boost-build:
     name: Boost build
@@ -61,7 +96,7 @@ jobs:
       - name: Configure
         run: cmake -S . -B build -DCLI11_BOOST=ON
       - name: Build
-        run: cmake --build build -j2
+        run: cmake --build build -j4
       - name: Run tests
         run: ctest --output-on-failure
         working-directory: build
@@ -77,7 +112,7 @@ jobs:
       - name: Configure
         run: cmake -S . -B build -DCLI11_SANITIZERS=ON
       - name: Build
-        run: cmake --build build -j2
+        run: cmake --build build -j4
       - name: Run tests
         run: ctest --output-on-failure
         working-directory: build

@@ -354,7 +354,7 @@ class App {
     virtual ~App() = default;
 
     /// Convert the contents of argv to UTF-8. Only does something on Windows, does nothing elsewhere.
-    CLI11_NODISCARD char **ensure_utf8(char **argv);
+    CLI11_NODISCARD const char **ensure_utf8(const char **argv);
 
     /// Set a callback for execution when all parsing and processing has completed
     ///
@@ -1010,7 +1010,7 @@ class App {
             throw OptionNotFound("nullptr passed");
         }
         if(app == this) {
-            throw OptionNotFound("cannot self reference in needs");
+            throw OptionNotFound("cannot self reference in excludes");
         }
         auto res = exclude_subcommands_.insert(app);
         // subcommand exclusion should be symmetric

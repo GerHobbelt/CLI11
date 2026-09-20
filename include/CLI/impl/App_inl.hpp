@@ -62,7 +62,7 @@ CLI11_INLINE App::App(std::string app_description, std::string app_name, App *pa
     }
 }
 
-CLI11_NODISCARD CLI11_INLINE char **App::ensure_utf8(char **argv) {
+CLI11_NODISCARD CLI11_INLINE const char **App::ensure_utf8(const char **argv) {
 #ifdef _WIN32
     (void)argv;
 
@@ -78,7 +78,9 @@ CLI11_NODISCARD CLI11_INLINE char **App::ensure_utf8(char **argv) {
         normalized_argv_view_.push_back(const_cast<char *>(arg.data()));
     }
 
-    return normalized_argv_view_.data();
+    // fix nonsense MSVC error C2440: 'initializing': cannot convert from 'char **' to 'const char **' : Conversion loses qualifiers
+    char **rv = normalized_argv_view_.data();
+    return (const char **)rv;
 #else
     return argv;
 #endif
@@ -603,6 +605,12 @@ CLI11_INLINE std::string maybe_narrow(const wchar_t *str) { return narrow(str); 
 }  // namespace detail
 
 template <class CharT> CLI11_INLINE void App::parse_char_t(int argc, const CharT *const *argv) {
+    // Guard against an empty (or invalid) argv; argc==0 is achievable via execve with an empty argv
+    if(argc < 1) {
+        parse(std::vector<std::string>{});
+        return;
+    }
+
     // If the name is not set, read from command line
     if(name_.empty() || has_automatic_name_) {
         has_automatic_name_ = true;
@@ -863,7 +871,8 @@ CLI11_INLINE std::vector<Option *> App::get_options(const std::function<bool(Opt
             std::end(options));
     }
     for(auto &subc : subcommands_) {
-        // also check down into nameless subcommands and specific groups
+        // purposely differs from the const overload: help formatting (const) only merges '+' groups, while
+        // config generation (this overload) must mirror the parser and descend into every nameless subcommand
         if(subc->get_name().empty() || (!subc->get_group().empty() && subc->get_group().front() == '+')) {
             auto subcopts = subc->get_options(filter);
             options.insert(options.end(), subcopts.begin(), subcopts.end());
@@ -1158,10 +1167,9 @@ CLI11_INLINE void App::run_callback(bool final_mode, bool suppress_final_callbac
 }
 
 CLI11_NODISCARD CLI11_INLINE bool App::_valid_subcommand(const std::string &current, bool ignore_used) const {
-    // Don't match if max has been reached - but still check parents
-    if(require_subcommand_max_ != 0 && parsed_subcommands_.size() >= require_subcommand_max_ &&
-       subcommand_fallthrough_) {
-        return parent_ != nullptr && parent_->_valid_subcommand(current, ignore_used);
+    // Don't match if max has been reached - but still check parents (only when fallthrough is enabled)
+    if(require_subcommand_max_ != 0 && parsed_subcommands_.size() >= require_subcommand_max_) {
+        return subcommand_fallthrough_ && parent_ != nullptr && parent_->_valid_subcommand(current, ignore_used);
     }
     auto *com = _find_subcommand(current, true, ignore_used);
     if(com != nullptr) {
@@ -1598,7 +1606,7 @@ CLI11_INLINE void App::_parse(std::vector<std::string> &&args) {
 
     while(!args.empty()) {
         if(!_parse_single(args, positional_only)) {
-            break;
+            break;  // LCOV_EXCL_LINE  _parse_single cannot return false at the top level
         }
     }
     _process();
@@ -2138,22 +2146,30 @@ App::_parse_arg(std::vector<std::string> &args, detail::Classifier current_type,
         if(dotloc != std::string::npos && dotloc < arg_name.size() - 1) {
             // using dot notation is equivalent to single argument subcommand
             auto *sub = _find_subcommand(arg_name.substr(0, dotloc), true, false);
+            if(sub != nullptr && require_subcommand_max_ != 0 &&
+               parsed_subcommands_.size() >= require_subcommand_max_ &&
+               std::find(parsed_subcommands_.begin(), parsed_subcommands_.end(), sub) == parsed_subcommands_.end()) {
+                // the maximum number of subcommands is reached, so a new one cannot be started
+                sub = nullptr;
+            }
             if(sub != nullptr) {
                 std::string v = args.back();
+                auto saved_type = current_type;
                 args.pop_back();
                 arg_name = arg_name.substr(dotloc + 1);
+                // rebuild the argument from the already-split name/value so this works regardless of the
+                // original prefix style ('--', '-', or windows '/')
+                std::size_t pushed = 1;
                 if(arg_name.size() > 1) {
-                    args.push_back(std::string("--") + v.substr(dotloc + 3));
+                    args.push_back("--" + arg_name + (value.empty() ? std::string{} : "=" + value));
                     current_type = detail::Classifier::LONG;
                 } else {
-                    auto nval = v.substr(dotloc + 2);
-                    nval.front() = '-';
-                    if(nval.size() > 2) {
-                        // '=' not allowed in short form arguments
-                        args.push_back(nval.substr(3));
-                        nval.resize(2);
+                    if(!value.empty()) {
+                        // '=' not allowed in short form arguments, so pass the value as a separate argument
+                        args.push_back(value);
+                        ++pushed;
                     }
-                    args.push_back(nval);
+                    args.push_back(std::string{'-'} + arg_name);
                     current_type = detail::Classifier::SHORT;
                 }
                 std::string dummy1, dummy2;
@@ -2176,8 +2192,13 @@ App::_parse_arg(std::vector<std::string> &args, detail::Classifier current_type,
                     }
                     return true;
                 }
-                args.pop_back();
+                // restore the arguments and classification to what they were before the attempt so that
+                // fallthrough to a parent re-splits the original argument with the correct splitter
+                for(std::size_t i = 0; i < pushed; ++i) {
+                    args.pop_back();
+                }
                 args.push_back(v);
+                current_type = saved_type;
             }
         }
         if(local_processing_only) {
@@ -2405,7 +2426,7 @@ CLI11_NODISCARD CLI11_INLINE const std::string &App::_compare_subcommand_names(c
     return estring;
 }
 
-inline bool capture_extras(ExtrasMode mode) {
+CLI11_INLINE bool capture_extras(ExtrasMode mode) {
     return mode == ExtrasMode::Capture || mode == ExtrasMode::AssumeSingleArgument ||
            mode == ExtrasMode::AssumeMultipleArguments;
 }

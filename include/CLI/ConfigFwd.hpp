@@ -57,7 +57,7 @@ class Config {
 
   public:
     /// Convert an app into a configuration
-    virtual std::string to_config(const App *, bool, bool, std::string) const = 0;
+    virtual std::string to_config(const App *app, bool default_also, bool write_description, std::string prefix) const = 0;
 
     /// Convert an app into a configuration
     virtual std::string
@@ -115,7 +115,7 @@ class ConfigBase : public Config {
     /// the character to use around single characters and literal strings
     char literalQuote = '\'';
     /// the maximum number of layers to allow
-    uint8_t maximumLayers{255};
+    std::uint8_t maximumLayers{255};
     /// the separator used to separator parent layers
     char parentSeparatorChar{'.'};
     /// comment default values

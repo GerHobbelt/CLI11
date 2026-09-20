@@ -91,6 +91,17 @@ TEST_CASE_METHOD(TApp, "OneFlagShortValuesAs", "[app]") {
     CHECK(1 == vec[1]);
 }
 
+// argc==0 (achievable via execve with an empty argv) must not underflow or dereference argv[0]
+TEST_CASE_METHOD(TApp, "ParseZeroArgc", "[app]") {
+    app.name("preset_name");
+    app.add_flag("-c,--count");
+    const char *const *argv = nullptr;
+    CHECK_NOTHROW(app.parse(0, argv));
+    // the preset name must be left untouched
+    CHECK(app.get_name() == "preset_name");
+    CHECK(app.count("--count") == 0u);
+}
+
 TEST_CASE_METHOD(TApp, "OneFlagShortWindows", "[app]") {
     app.add_flag("-c,--count");
     args = {"/c"};
@@ -3086,6 +3097,12 @@ TEST_CASE("C20_compile", "simple") {
 }
 
 #ifdef _WIN32
+// The precompiled mode does not include any Windows headers through CLI11
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+
 static int spawn_subprocess_win32(const wchar_t *path, wchar_t *commandline) {
     STARTUPINFOW si{};
     si.cb = sizeof(si);
