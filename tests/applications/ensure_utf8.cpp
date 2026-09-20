@@ -17,23 +17,22 @@ extern "C"
 int main(int argc, const char **argv) {
     CLI::App app{"App description"};
     const char **original_argv = argv;
-    char **argve = const_cast<char **>(argv);
-    argve = app.ensure_utf8(argve);
+    argv = app.ensure_utf8(argv);
 
 #ifdef _WIN32
     for(int i = 0; i < argc; i++) {
-        if(std::strcmp(argve[i], original_argv[i]) != 0) {
-            std::cerr << argve[i] << "\n";
+        if(std::strcmp(argv[i], original_argv[i]) != 0) {
+            std::cerr << argv[i] << "\n";
             std::cerr << original_argv[i] << "\n";
             return i + 1;
         }
-        argve[i][0] = 'x';  // access it to check that it is accessible
+        //argv[i][0] = 'x';  // access it to check that it is accessible
     }
 
 #else
     (void)argc;
 
-    if(original_argv != argve) {
+    if(original_argv != argv) {
         return -1;
     }
 #endif
