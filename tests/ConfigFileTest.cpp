@@ -3438,12 +3438,12 @@ TEST_CASE_METHOD(TApp, "TomlOutputHiddenOptions", "[config]") {
     std::string str = app.config_to_str(true, true);
     CHECK_THAT(str, Contains("group1"));
     CHECK_THAT(str, Contains("group2"));
-    CHECK_THAT(str, Contains("dval=12.7"));
-    auto loc = str.find("dval=12.7");
+    CHECK_THAT(str, Contains("dval=12.699999999999999"));
+    auto loc = str.find("dval=12.699999999999999");
     auto locg1 = str.find("group1");
     CHECK(loc < locg1);
     // make sure it doesn't come twice
-    loc = str.find("dval=12.7", loc + 4);
+    loc = str.find("dval=12.699999999999999", loc + 4);
     CHECK(std::string::npos == loc);
 }
 
@@ -3539,17 +3539,99 @@ TEST_CASE_METHOD(TApp, "TomlOutputOptionGroup", "[config]") {
     std::string str = app.config_to_str(true, true);
     CHECK_THAT(str, Contains("group1"));
     CHECK_THAT(str, Contains("group2"));
-    CHECK_THAT(str, Contains("dval=12.7"));
+    CHECK_THAT(str, Contains("dval=12.699999999999999"));
     CHECK_THAT(str, Contains("group3"));
     CHECK_THAT(str, Contains("g3 desc"));
-    auto loc = str.find("dval=12.7");
+    auto loc = str.find("dval=12.699999999999999");
     auto locg1 = str.find("group1");
     auto locg3 = str.find("group3");
     CHECK(loc > locg1);
     // make sure it doesn't come twice
-    loc = str.find("dval=12.7", loc + 4);
+    loc = str.find("dval=12.699999999999999", loc + 4);
     CHECK(std::string::npos == loc);
     CHECK(locg1 < locg3);
+}
+
+TEST_CASE_METHOD(TApp, "TomlOutputPlusGroupNoDuplication", "[config]") {
+    // A nested option group whose name starts with '+' gets its options merged into the
+    // parent's own option list by get_options(), so the config writer must not also recurse
+    // into it as a subcommand, or the option ends up written twice.
+    auto *input = app.add_option_group("Input");
+    auto *dim = input->add_option_group("+dim");
+    bool is2d{false};
+    bool is3d{false};
+    dim->add_flag("--2d", is2d);
+    dim->add_flag("--3d", is3d);
+
+    args = {"--2d"};
+    run();
+
+    std::string str = app.config_to_str();
+    auto loc = str.find("2d=true");
+    CHECK(loc != std::string::npos);
+    loc = str.find("2d=true", loc + 4);
+    CHECK(std::string::npos == loc);
+
+    // the duplicated line used to also break reading the config back in
+    std::istringstream nfile(str);
+    app.clear();
+    is2d = false;
+    app.parse_from_stream(nfile);
+    CHECK(is2d);
+}
+
+TEST_CASE_METHOD(TApp, "TomlOutputPlusGroupNamedSubcommand", "[config]") {
+    auto *plus = app.add_option_group("+plus");
+    auto *sub = plus->add_subcommand("sub");
+    int x{0};
+    sub->add_option("--x", x);
+
+    args = {"sub", "--x", "3"};
+    run();
+
+    CHECK_THAT(app.config_to_str(), Contains("sub.x=3"));
+    CHECK_THAT(app.config_to_str(true), Contains("sub.x=3"));
+}
+
+TEST_CASE_METHOD(TApp, "TomlOutputPlusGroupNestedGroup", "[config]") {
+    auto *plus = app.add_option_group("+plus");
+    auto *inner = plus->add_option_group("Inner");
+    bool flag{false};
+    inner->add_flag("--f", flag);
+
+    args = {"--f"};
+    run();
+
+    CHECK_THAT(app.config_to_str(), Contains("f=true"));
+    CHECK_THAT(app.config_to_str(true), Contains("f=true"));
+}
+
+TEST_CASE_METHOD(TApp, "TomlOutputPlusGroupCustomOptionGroup", "[config]") {
+    auto *plus = app.add_option_group("+plus");
+    bool flag{false};
+    plus->add_flag("--g", flag)->group("Special");
+
+    args = {"--g"};
+    run();
+
+    CHECK_THAT(app.config_to_str(), Contains("g=true"));
+}
+
+TEST_CASE_METHOD(TApp, "TomlOutputFallthroughNoDuplication", "[config]") {
+    int a{0};
+    int b{0};
+    app.add_option("--a", a);
+    auto *sub = app.add_subcommand("sub");
+    sub->fallthrough();
+    sub->add_option("--b", b);
+
+    args = {"--a", "1", "sub", "--b", "2"};
+    run();
+
+    std::string str = app.config_to_str(true);
+    CHECK_THAT(str, Contains("a=1"));
+    CHECK_THAT(str, Contains("sub.b=2"));
+    CHECK_THAT(str, !Contains("sub.a="));
 }
 
 TEST_CASE_METHOD(TApp, "TomlOutputVector", "[config]") {
@@ -4041,12 +4123,12 @@ TEST_CASE_METHOD(TApp, "IniOutputHiddenOptions", "[config]") {
     std::string str = app.config_to_str(true, true);
     CHECK_THAT(str, Contains("group1"));
     CHECK_THAT(str, Contains("group2"));
-    CHECK_THAT(str, Contains("dval=12.7"));
-    auto loc = str.find("dval=12.7");
+    CHECK_THAT(str, Contains("dval=12.699999999999999"));
+    auto loc = str.find("dval=12.699999999999999");
     auto locg1 = str.find("group1");
     CHECK(loc < locg1);
     // make sure it doesn't come twice
-    loc = str.find("dval=12.7", loc + 4);
+    loc = str.find("dval=12.699999999999999", loc + 4);
     CHECK(std::string::npos == loc);
 }
 
@@ -4125,15 +4207,15 @@ TEST_CASE_METHOD(TApp, "IniOutputOptionGroup", "[config]") {
     std::string str = app.config_to_str(true, true);
     CHECK_THAT(str, Contains("group1"));
     CHECK_THAT(str, Contains("group2"));
-    CHECK_THAT(str, Contains("dval=12.7"));
+    CHECK_THAT(str, Contains("dval=12.699999999999999"));
     CHECK_THAT(str, Contains("group3"));
     CHECK_THAT(str, Contains("g3 desc"));
-    auto loc = str.find("dval=12.7");
+    auto loc = str.find("dval=12.699999999999999");
     auto locg1 = str.find("group1");
     auto locg3 = str.find("group3");
     CHECK(loc > locg1);
     // make sure it doesn't come twice
-    loc = str.find("dval=12.7", loc + 4);
+    loc = str.find("dval=12.699999999999999", loc + 4);
     CHECK(std::string::npos == loc);
     CHECK(locg1 < locg3);
 }
