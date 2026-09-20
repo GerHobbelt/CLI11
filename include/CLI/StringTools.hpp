@@ -117,13 +117,16 @@ CLI11_INLINE std::string &rtrim(std::string &str, const std::string &filter);
 inline std::string &trim(std::string &str) { return ltrim(rtrim(str)); }
 
 /// Trim anything from string
-inline std::string &trim(std::string &str, const std::string filter) { return ltrim(rtrim(str, filter), filter); }
+inline std::string &trim(std::string &str, const std::string &filter) { return ltrim(rtrim(str, filter), filter); }
 
 /// Make a copy of the string and then trim it
 inline std::string trim_copy(const std::string &str) {
     std::string s = str;
     return trim(s);
 }
+
+/// remove a matching pair of outer characters (front and back) from a string if both equal `key`
+CLI11_INLINE std::string &remove_outer(std::string &str, char key);
 
 /// remove quotes at the front and back of a string either '"' or '\''
 CLI11_INLINE std::string &remove_quotes(std::string &str);
@@ -208,7 +211,7 @@ CLI11_INLINE void remove_default_flag_values(std::string &flags);
 
 /// Check if a string is a member of a list of strings and optionally ignore case or ignore underscores
 CLI11_INLINE std::ptrdiff_t find_member(std::string name,
-                                        const std::vector<std::string> names,
+                                        const std::vector<std::string> &names,
                                         bool ignore_case = false,
                                         bool ignore_underscore = false);
 

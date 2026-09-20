@@ -109,9 +109,8 @@ Option *default_flag_modifiers(Option *opt) {
 
 class Option_group;
 /// Creates a command line program, with very few defaults.
-/** To use, create a new `Program()` instance with `argc`, `argv`, and a help description. The templated
- *  add_option methods make it easy to prepare options. Remember to call `.start` before starting your
- * program, so that the options can be evaluated and the help option doesn't accidentally run your program. */
+/** To use, create a new `App` instance with a description, then call `parse(argc, argv)`. The templated
+ *  add_option methods make it easy to prepare options. After parsing, bound variables hold the parsed values. */
 class App {
     friend Option;
     friend detail::AppFriend;
@@ -411,7 +410,7 @@ class App {
         return this;
     }
 
-    /// Remove the error when extras are left over on the command line.
+    /// Set whether this subcommand/option-group is required to be present on the command line.
     App *required(bool require = true) {
         required_ = require;
         return this;
@@ -541,7 +540,7 @@ class App {
 
     /// Set the help formatter
     App *formatter(std::shared_ptr<FormatterBase> fmt) {
-        formatter_ = fmt;
+        formatter_ = std::move(fmt);
         return this;
     }
 
@@ -553,7 +552,7 @@ class App {
 
     /// Set the config formatter
     App *config_formatter(std::shared_ptr<Config> fmt) {
-        config_formatter_ = fmt;
+        config_formatter_ = std::move(fmt);
         return this;
     }
 
@@ -837,7 +836,7 @@ class App {
 
     /// Changes the group membership
     App *group(std::string group_name) {
-        group_ = group_name;
+        group_ = std::move(group_name);
         return this;
     }
 
@@ -959,7 +958,7 @@ class App {
 
     /// Provide a function to print a help message. The function gets access to the App pointer and error.
     void failure_message(std::function<std::string(const App *, const Error &e)> function) {
-        failure_message_ = function;
+        failure_message_ = std::move(function);
     }
 
     /// Print a nice error message and return the exit code
@@ -1354,6 +1353,12 @@ class App {
     /// The flags allow recursive calls to remember if there was a help flag on a parent.
     void _process_help_flags(CallbackPriority priority, bool trigger_help = false, bool trigger_all_help = false) const;
 
+    /// Run the full priority-ordered callback/help-flag pipeline used when a parse-complete callback fires.
+    ///
+    /// When @p with_help_flags is true the help-flag passes and environment processing are included
+    /// (the option/dot-notation paths); when false they are omitted (the config-section-close path).
+    void _process_completion_callbacks(bool with_help_flags);
+
     /// Verify required options and cross requirements. Subcommands too (only if selected).
     void _process_requirements();
 
@@ -1365,6 +1370,10 @@ class App {
 
     /// Internal function to recursively increment the parsed counter on the current app as well unnamed subcommands
     void increment_parsed();
+
+    /// Shared prologue for the public parse() overloads: clears prior state, validates and configures,
+    /// and marks this app as the top-level app.
+    void _parse_setup();
 
     /// Internal parse function
     void _parse(std::vector<std::string> &args);

@@ -133,7 +133,8 @@ CLI11_INLINE std::string Formatter::make_usage(const App *app, std::string name)
         out << " [" << get_label("OPTIONS") << "]";
 
     // Positionals need to be listed here
-    std::vector<const Option *> positionals = app->get_options([](const Option *opt) { return opt->get_positional(); });
+    std::vector<const Option *> positionals =
+        app->get_options([](const Option *opt) { return !opt->get_group().empty() && opt->get_positional(); });
 
     // Print out positionals if any are left
     if(!positionals.empty()) {
@@ -185,7 +186,7 @@ CLI11_INLINE std::string Formatter::make_help(const App *app, std::string name, 
         detail::streamOutAsParagraph(
             out, make_description(app), description_paragraph_width_, "");  // Format description as paragraph
     } else {
-        out << make_description(app) << '\n';
+        out << make_description(app);
     }
     out << make_usage(app, name);
     out << make_positionals(app);
@@ -219,9 +220,10 @@ CLI11_INLINE std::string Formatter::make_subcommands(const App *app, AppFormatMo
             continue;
         }
         std::string group_key = com->get_group();
+        std::string group_key_lower = detail::to_lower(group_key);
         if(!group_key.empty() &&
-           std::find_if(subcmd_groups_seen.begin(), subcmd_groups_seen.end(), [&group_key](std::string a) {
-               return detail::to_lower(a) == detail::to_lower(group_key);
+           std::find_if(subcmd_groups_seen.begin(), subcmd_groups_seen.end(), [&group_key_lower](const std::string &a) {
+               return detail::to_lower(a) == group_key_lower;
            }) == subcmd_groups_seen.end())
             subcmd_groups_seen.push_back(group_key);
     }
@@ -251,8 +253,17 @@ CLI11_INLINE std::string Formatter::make_subcommand(const App *sub) const {
     std::string name = "  " + sub->get_display_name(true) + (sub->get_required() ? " " + get_label("REQUIRED") : "");
 
     out << std::setw(static_cast<int>(column_width_)) << std::left << name;
-    detail::streamOutAsParagraph(
-        out, sub->get_description(), right_column_width_, std::string(column_width_, ' '), true);
+
+    const std::string desc = sub->get_description();
+    if(!desc.empty()) {
+        bool skipFirstLinePrefix = true;
+        if(name.length() >= column_width_) {
+            out << '\n';
+            skipFirstLinePrefix = false;
+        }
+        detail::streamOutAsParagraph(
+            out, desc, right_column_width_, std::string(column_width_, ' '), skipFirstLinePrefix);
+    }
     out << '\n';
     return out.str();
 }

@@ -218,6 +218,25 @@ TEST_CASE("StringTools: Modify3", "[helpers]") {
     CHECK("aba" == newString);
 }
 
+TEST_CASE("StringTools: escape_detect", "[helpers]") {
+    // a trigger char preceded by a '-' (for '=') is reinterpreted as a space so split_up works
+    std::string opt{"--opt=\"value\""};
+    CLI::detail::escape_detect(opt, 5);
+    CHECK(opt == "--opt \"value\"");
+
+    // a leading trigger character has nothing preceding it; it must not be rewritten
+    // (and must not read out of bounds at offset 0)
+    std::string leading{"=\"value\""};
+    auto ret = CLI::detail::escape_detect(leading, 0);
+    CHECK(ret == 1U);
+    CHECK(leading == "=\"value\"");
+
+    // make sure a later '-' does not get wrongly matched for a leading trigger
+    std::string leading2{"=\"-value\""};
+    CLI::detail::escape_detect(leading2, 0);
+    CHECK(leading2 == "=\"-value\"");
+}
+
 TEST_CASE("StringTools: flagValues", "[helpers]") {
     errno = 0;
     CHECK(-1 == CLI::detail::to_flag_value("0"));
@@ -479,6 +498,11 @@ TEST_CASE("StringTools: unicode_literals", "[helpers]") {
 
     CHECK_THROWS_AS(CLI::detail::remove_escaped_characters("test\\U0001E600\\uD8"), std::invalid_argument);
     CHECK_THROWS_AS(CLI::detail::remove_escaped_characters("test\\U0001E60"), std::invalid_argument);
+    // code points above U+10FFFF are not valid and must throw rather than silently vanish
+    CHECK_THROWS_AS(CLI::detail::remove_escaped_characters("test\\U00110000"), std::invalid_argument);
+    CHECK_THROWS_AS(CLI::detail::remove_escaped_characters("test\\UFFFFFFFF"), std::invalid_argument);
+    // the largest valid code point still works
+    CHECK(CLI::detail::remove_escaped_characters("test\\U0010FFFF") == from_u8string(u8"test\U0010FFFF"));
 }
 
 TEST_CASE("StringTools: close_sequence", "[helpers]") {
@@ -583,6 +607,12 @@ TEST_CASE("Validators: FilePathModifier", "[helpers]") {
     CLI::FileOnDefaultPath defPathNoFail("../", false);
     CHECK(defPathNoFail(filename2).empty());
     CHECK(filename2 == "nonexistingfile.csv");
+    // empty default path must not invoke UB via back() on an empty string
+    CLI::FileOnDefaultPath defPathEmpty("", false);
+    std::string filename3 = "nonexistingfile.csv";
+    CHECK(defPathEmpty(filename3).empty());
+    CLI::FileOnDefaultPath defPathEmptyErr("", true);
+    CHECK_FALSE(defPathEmptyErr(filename3).empty());
 }
 
 TEST_CASE("Validators: FileIsDir", "[helpers]") {
@@ -649,6 +679,9 @@ TEST_CASE("Validators: PositiveValidator", "[helpers]") {
     CHECK_FALSE(CLI::PositiveNumber(num).empty());
     num = "a";
     CHECK_FALSE(CLI::PositiveNumber(num).empty());
+    // subnormal positive doubles are strictly positive and must be accepted
+    num = "5e-324";  // std::numeric_limits<double>::denorm_min
+    CHECK(CLI::PositiveNumber(num).empty());
 }
 
 TEST_CASE("Validators: NonNegativeValidator", "[helpers]") {
@@ -1217,6 +1250,30 @@ TEST_CASE("SplitUp: BadStrings", "[helpers]") {
     CHECK(result == oput);
 }
 
+TEST_CASE("SplitUp: TrailingAfterQuote", "[helpers]") {
+    // a non-delimiter character following a closing quote must not be dropped
+    std::vector<std::string> oput = {"\"abc\"", "def"};
+    std::string orig{"\"abc\"def"};
+    std::vector<std::string> result = CLI::detail::split_up(orig);
+    CHECK(result == oput);
+}
+
+TEST_CASE("SplitUp: TrailingAfterBracket", "[helpers]") {
+    // a non-delimiter character following a closing bracket must not be dropped
+    std::vector<std::string> oput = {"[a, b]", "c"};
+    std::string orig{"[a, b]c"};
+    std::vector<std::string> result = CLI::detail::split_up(orig, ',');
+    CHECK(result == oput);
+}
+
+TEST_CASE("SplitUp: DelimiterAfterQuote", "[helpers]") {
+    // an actual delimiter following a closing quote is still consumed
+    std::vector<std::string> oput = {"\"abc\"", "def"};
+    std::string orig{"\"abc\",def"};
+    std::vector<std::string> result = CLI::detail::split_up(orig, ',');
+    CHECK(result == oput);
+}
+
 TEST_CASE("Types: TypeName", "[helpers]") {
     std::string int_name = CLI::detail::type_name<int>();
     CHECK(int_name == "INT");
@@ -1378,6 +1435,18 @@ TEST_CASE("Types: LexicalCastInt", "[helpers]") {
     CHECK_FALSE(CLI::detail::lexical_cast(empty_input, y_signed));
 }
 
+TEST_CASE("Types: LexicalCastUnsignedLeadingWhitespaceNegative", "[helpers]") {
+    // strtoull skips leading whitespace and silently wraps a negative value; " -1" must not become UINT64_MAX
+    std::uint64_t x_unsigned = 0;
+    CHECK_FALSE(CLI::detail::lexical_cast(" -1", x_unsigned));
+    CHECK_FALSE(CLI::detail::lexical_cast("\t-5", x_unsigned));
+    CHECK_FALSE(CLI::detail::lexical_cast("-1", x_unsigned));
+
+    // a leading-whitespace positive value should still convert correctly
+    CHECK(CLI::detail::lexical_cast(" 7", x_unsigned));
+    CHECK(x_unsigned == static_cast<std::uint64_t>(7));
+}
+
 TEST_CASE("Types: LexicalCastDouble", "[helpers]") {
     std::string input = "9.12";
     long double x = NAN;
@@ -1396,6 +1465,12 @@ TEST_CASE("Types: LexicalCastDouble", "[helpers]") {
 
     std::string empty_input{};
     CHECK_FALSE(CLI::detail::lexical_cast(empty_input, x));
+
+    // whitespace-only strings perform no conversion in strtold and must fail rather than report 0.0
+    double d = 7.5;
+    CHECK_FALSE(CLI::detail::lexical_cast(" ", d));
+    CHECK_FALSE(CLI::detail::lexical_cast("   ", d));
+    CHECK_FALSE(CLI::detail::lexical_cast("\t\n", d));
 }
 
 TEST_CASE("Types: LexicalCastBool", "[helpers]") {
@@ -1500,6 +1575,47 @@ TEST_CASE("Types: LexicalConversionEmptyVectorDouble", "[helpers]") {
     bool res = CLI::detail::lexical_conversion<std::vector<double>, std::vector<double>>(input, x);
     CHECK(res);
     CHECK(x.empty());
+}
+
+TEST_CASE("Types: LexicalConversionPairContainerOddCount", "[helpers]") {
+    // an odd element count must fail rather than insert a pair with an uninitialized/defaulted second value
+    using map_t = std::vector<std::pair<std::string, int>>;
+    CLI::results_t input = {"onlykey"};
+    map_t x;
+    bool res = CLI::detail::lexical_conversion<map_t, map_t>(input, x);
+    CHECK_FALSE(res);
+
+    // a complete set of pairs should still convert successfully
+    input = {"a", "1", "b", "2"};
+    res = CLI::detail::lexical_conversion<map_t, map_t>(input, x);
+    CHECK(res);
+    REQUIRE(x.size() == static_cast<std::size_t>(2));
+    CHECK(x[0].first == "a");
+    CHECK(x[0].second == 1);
+    CHECK(x[1].first == "b");
+    CHECK(x[1].second == 2);
+}
+
+TEST_CASE("Types: SumStringVector", "[helpers]") {
+    // large integer sums must stay exact and render as plain integers, not scientific notation
+    std::vector<std::string> big = {"5000000000000000", "5000000000000000"};
+    CHECK(CLI::detail::sum_string_vector(big) == "10000000000000000");
+
+    // values above 2^53 must not lose precision through a double accumulation
+    std::vector<std::string> precise = {"9007199254740993", "0"};
+    CHECK(CLI::detail::sum_string_vector(precise) == "9007199254740993");
+
+    // simple integer sums
+    std::vector<std::string> small = {"3", "4", "5"};
+    CHECK(CLI::detail::sum_string_vector(small) == "12");
+
+    // floating point sums fall back to the double path
+    std::vector<std::string> floats = {"1.5", "2.5"};
+    CHECK(CLI::detail::sum_string_vector(floats) == "4");
+
+    // non-numeric values fall back to string concatenation
+    std::vector<std::string> strings = {"a", "b"};
+    CHECK(CLI::detail::sum_string_vector(strings) == "ab");
 }
 
 static_assert(!CLI::detail::is_tuple_like<std::vector<double>>::value, "vector should not be like a tuple");

@@ -434,7 +434,7 @@ TEST_CASE_METHOD(TApp, "OneStringEqualVersionSingleStringQuotedEscapedCharacters
     app.add_option("-s,--string", str);
     app.add_option("-t,--tstr", str2);
     app.add_option("-m,--mstr", str3);
-    app.parse(R"raw(--string="this is my \n\"quoted\" string" -t 'qst\ring 2' -m=`"quoted\n string"`")raw");
+    app.parse(R"raw(--string="this is my \n\"quoted\" string" -t 'qst\ring 2' -m=`"quoted\n string"`)raw");
     CHECK("this is my \n\"quoted\" string" == str);  // escaped
     CHECK("qst\\ring 2" == str2);                    // literal
     CHECK("\"quoted\\n string\"" == str3);           // double quoted literal
@@ -957,6 +957,22 @@ TEST_CASE_METHOD(TApp, "SumOptString", "[app]") {
     run();
 
     CHECK("i2" == val);
+}
+
+TEST_CASE_METHOD(TApp, "SumOptClearResetsProc", "[app]") {
+    // Regression test: Option::clear() must also clear proc_results_ so that
+    // a subsequent parse is not contaminated by a previous run's processed values.
+    int val = 0;
+    auto *opt = app.add_option("--val", val)->multi_option_policy(CLI::MultiOptionPolicy::Sum);
+
+    args = {"--val=2", "--val=3"};
+    run();
+    CHECK(5 == val);
+
+    opt->clear();
+    opt->add_result("7");
+    (void)opt->as<int>();  // triggers reduction into proc_results_
+    CHECK(7 == opt->as<int>());
 }
 
 TEST_CASE_METHOD(TApp, "ReverseOpt", "[app]") {
@@ -2603,6 +2619,23 @@ TEST_CASE_METHOD(TApp, "PrefixCommand", "[app]") {
 TEST_CASE_METHOD(TApp, "ExtrasErrorRvalueParse", "[app]") {
 
     CHECK_THROWS_AS(app.parse(std::vector<std::string>({"-x", "45", "-f", "27"})), CLI::ExtrasError);
+}
+
+// the two-argument ExtrasError(name, args) must still report its class name through get_name(),
+// like every other error class, while preserving the message content
+TEST_CASE_METHOD(TApp, "ExtrasErrorName", "[app]") {
+    app.name("myprog");
+    args = {"extra1", "extra2"};
+    try {
+        run();
+        CHECK(false);
+    } catch(const CLI::ExtrasError &err) {
+        CHECK(err.get_name() == "ExtrasError");
+        std::string message = err.what();
+        CHECK_THAT(message, Contains("extra1"));
+        CHECK_THAT(message, Contains("extra2"));
+        CHECK_THAT(message, Contains("myprog"));
+    }
 }
 
 TEST_CASE_METHOD(TApp, "AllowExtrasCascadeDirect", "[app]") {

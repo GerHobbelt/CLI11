@@ -64,11 +64,8 @@ CLI11_INLINE std::string &rtrim(std::string &str, const std::string &filter) {
 }
 
 CLI11_INLINE std::string &remove_quotes(std::string &str) {
-    if(str.length() > 1 && (str.front() == '"' || str.front() == '\'' || str.front() == '`')) {
-        if(str.front() == str.back()) {
-            str.pop_back();
-            str.erase(str.begin(), str.begin() + 1);
-        }
+    if(!str.empty() && (str.front() == '"' || str.front() == '\'' || str.front() == '`')) {
+        remove_outer(str, str.front());
     }
     return str;
 }
@@ -88,8 +85,8 @@ CLI11_INLINE std::string fix_newlines(const std::string &leader, std::string inp
     while(n != std::string::npos && n < input.size()) {
         n = input.find_first_of("\r\n", n);
         if(n != std::string::npos) {
-            input = input.substr(0, n + 1) + leader + input.substr(n + 1);
-            n += leader.size();
+            input.insert(n + 1, leader);
+            n += leader.size() + 1;
         }
     }
     return input;
@@ -158,7 +155,7 @@ CLI11_INLINE void remove_default_flag_values(std::string &flags) {
 }
 
 CLI11_INLINE std::ptrdiff_t
-find_member(std::string name, const std::vector<std::string> names, bool ignore_case, bool ignore_underscore) {
+find_member(std::string name, const std::vector<std::string> &names, bool ignore_case, bool ignore_underscore) {
     auto it = std::end(names);
     if(ignore_case) {
         if(ignore_underscore) {
@@ -202,14 +199,6 @@ CLI11_MODULE_INLINE const std::string &matchBracketChars() {
     return s;
 }
 
-// CLI11_MODULE_INLINE constexpr char escapedChars[]="\b\t\n\f\r\"\\";
-// CLI11_MODULE_INLINE constexpr char escapedCharsCode[]="btnfr\"\\";
-/*
-const std::string &escapedChars("\b\t\n\f\r\"\\");
-
-CLI11_MODULE_INLINE const std::string &bracketChars("\"'`[(<{");
-CLI11_MODULE_INLINE const std::string &matchBracketChars("\"'`])>}");
-*/
 CLI11_INLINE bool has_escapable_character(const std::string &str) {
     return (str.find_first_of(escapedChars()) != std::string::npos);
 }
@@ -254,7 +243,7 @@ CLI11_INLINE void append_codepoint(std::string &str, std::uint32_t code) {
         str.push_back(make_char(0x80 | (code & 0x3F)));
     } else if(code < 0x10000) {  // U+0800...U+FFFF
         if(0xD800 <= code && code <= 0xDFFF) {
-            throw std::invalid_argument("[0xD800, 0xDFFF] are not valid UTF-8.");
+            throw std::invalid_argument("[0xD800, 0xDFFF] are not valid code points.");
         }
         // 1110yyyy 10yxxxxx 10xxxxxx
         str.push_back(make_char(0xE0 | code >> 12));
@@ -266,6 +255,8 @@ CLI11_INLINE void append_codepoint(std::string &str, std::uint32_t code) {
         str.push_back(make_char(0x80 | (code >> 12 & 0x3F)));
         str.push_back(make_char(0x80 | (code >> 6 & 0x3F)));
         str.push_back(make_char(0x80 | (code & 0x3F)));
+    } else {  // code points above U+10FFFF are not valid
+        throw std::invalid_argument("values above 0x10FFFF are not valid code points.");
     }
 }
 
@@ -416,8 +407,17 @@ CLI11_INLINE std::vector<std::string> split_up(std::string str, char delimiter) 
                 str.clear();
             } else {
                 output.push_back(str.substr(0, end + 1));
-                if(end + 2 < str.size()) {
-                    str = str.substr(end + 2);
+                // The character following a closing quote/bracket is normally a delimiter and is
+                // consumed.  If it is an ordinary character it must be retained (resume from it) so
+                // no characters are silently lost (e.g. `"abc"def` -> {"abc", "def"}).  However if it
+                // is itself a quote/bracket opening character, resuming from it would start a fresh
+                // (potentially unterminated) quoted sequence that could swallow later delimiters, so
+                // it is skipped like the original delimiter case to keep splitting well behaved.
+                char follow = str[end + 1];
+                bool skip_follow = find_ws(follow) || (bracketChars().find_first_of(follow) != std::string::npos);
+                auto next = skip_follow ? end + 2 : end + 1;
+                if(next < str.size()) {
+                    str = str.substr(next);
                 } else {
                     str.clear();
                 }
@@ -442,6 +442,10 @@ CLI11_INLINE std::vector<std::string> split_up(std::string str, char delimiter) 
 CLI11_INLINE std::size_t escape_detect(std::string &str, std::size_t offset) {
     auto next = str[offset + 1];
     if((next == '\"') || (next == '\'') || (next == '`')) {
+        if(offset == 0) {
+            // nothing precedes the trigger character, so there is nothing to reinterpret
+            return offset + 1;
+        }
         auto astart = str.find_last_of("-/ \"\'`", offset - 1);
         if(astart != std::string::npos) {
             if(str[astart] == ((str[offset] == '=') ? '-' : '/'))
@@ -483,7 +487,7 @@ CLI11_INLINE std::string binary_escape_string(const std::string &string_to_escap
         while(sqLoc != std::string::npos) {
             escaped_string[sqLoc] = '\\';
             escaped_string.insert(sqLoc + 1, "x27");
-            sqLoc = escaped_string.find('\'');
+            sqLoc = escaped_string.find('\'', sqLoc + 4);
         }
         escaped_string.insert(0, "'B\"(");
         escaped_string.push_back(')');
@@ -542,6 +546,9 @@ CLI11_INLINE std::string extract_binary_string(const std::string &escaped_string
 
 CLI11_INLINE void remove_quotes(std::vector<std::string> &args) {
     for(auto &arg : args) {
+        if(arg.empty()) {
+            continue;
+        }
         if(arg.front() == '\"' && arg.back() == '\"') {
             remove_quotes(arg);
             // only remove escaped for string arguments not literal strings

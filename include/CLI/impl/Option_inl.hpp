@@ -486,10 +486,10 @@ CLI11_INLINE Option *Option::add_result(std::vector<std::string> s) {
 }
 
 CLI11_NODISCARD CLI11_INLINE results_t Option::reduced_results() const {
-    results_t res = proc_results_.empty() ? results_ : proc_results_;
+    const bool parsing = current_option_state_ == option_state::parsing;
+    results_t res = (parsing || proc_results_.empty()) ? results_ : proc_results_;
     if(current_option_state_ < option_state::reduced) {
-        if(current_option_state_ == option_state::parsing) {
-            res = results_;
+        if(parsing) {
             _validate_results(res);
         }
         if(!res.empty()) {
@@ -634,7 +634,7 @@ CLI11_INLINE void Option::_reduce_results(results_t &out, const results_t &origi
         }
     } break;
     case MultiOptionPolicy::Join:
-        if(results_.size() > 1) {
+        if(original.size() > 1) {
             out.push_back(detail::join(original, std::string(1, (delimiter_ == '\0') ? '\n' : delimiter_)));
         }
         break;
@@ -732,15 +732,12 @@ CLI11_INLINE int Option::_add_result(std::string &&result, std::vector<std::stri
 
         result.pop_back();
         result.erase(result.begin());
-        bool skipSection{false};
         for(auto &var : CLI::detail::split_up(result, ',')) {
             if(!var.empty()) {
                 result_count += _add_result(std::move(var), res);
             }
         }
-        if(!skipSection) {
-            return result_count;
-        }
+        return result_count;
     }
     if(delimiter_ == '\0') {
         res.push_back(std::move(result));
