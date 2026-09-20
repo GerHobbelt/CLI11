@@ -1,6 +1,32 @@
 # Changelog {#changelog}
 
-## Version 2.7.0
+## Version 2.7.1: LTO link fix
+
+This patch release fixes linking against the precompiled shared library when it
+is built with link-time optimization.
+
+### Fixed
+
+- Fixed missing symbols in the precompiled library under LTO: `Precompile.cpp`
+  now explicitly instantiates `Option::ignore_case<App>` and
+  `ignore_underscore<App>`, and the library always compiles the full validator
+  set unless CMake disables it. [#1409][]
+
+### Documentation
+
+- Added the changelog to the Doxygen site. [#1405][]
+- Titled the changelog entries and named the releases from them. [#1406][]
+
+### Internal
+
+- Moved the release checklist to a `prepare-release` skill. [#1407][]
+
+[#1405]: https://github.com/CLIUtils/CLI11/pull/1405
+[#1406]: https://github.com/CLIUtils/CLI11/pull/1406
+[#1407]: https://github.com/CLIUtils/CLI11/pull/1407
+[#1409]: https://github.com/CLIUtils/CLI11/pull/1409
+
+## Version 2.7.0: Audit and documentation
 
 This version adds a `FileSize` validator, a `PositionalOnly` prefix command
 mode, and more control over config file generation. It also contains a large set
@@ -166,7 +192,7 @@ that remove unnecessary copies in hot paths.
 [#1402]: https://github.com/CLIUtils/CLI11/pull/1402
 [#1403]: https://github.com/CLIUtils/CLI11/pull/1403
 
-## Version 2.6.2
+## Version 2.6.2: C++20 modules
 
 This version adds C++20 modules support, additional controls for help output and
 finer grained control for extras handling and prefix command operation. Fixes
@@ -231,7 +257,7 @@ help output and specific combinations of options and conditions.
 [#1261]: https://github.com/CLIUtils/CLI11/pull/1261
 [#1244]: https://github.com/CLIUtils/CLI11/pull/1244
 
-## Version 2.6.1
+## Version 2.6.1: Compilation fixes
 
 Patch fixing some compile issues in specific situations in the recent release,
 and a potential segmentation fault from specially crafted config files
@@ -253,7 +279,7 @@ and a potential segmentation fault from specially crafted config files
 [#1238]: https://github.com/CLIUtils/CLI11/pull/1238
 [#1239]: https://github.com/CLIUtils/CLI11/pull/1239
 
-## Version 2.6.0
+## Version 2.6.0: Callback control
 
 This version adds finer grained control of when option callbacks are executed,
 and further refinements in the help formatting. It also fixes a number of bugs
