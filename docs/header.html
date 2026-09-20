@@ -49,6 +49,29 @@ $extrastylesheet
         })
         document.getElementById("titlearea").appendChild(toggleButton)
     })
+    // The navtree renders with every group collapsed except the current
+    // page's path. Start the top-level groups (Guide, Examples, API
+    // Reference) open. The tree is built asynchronously, so wait for it to
+    // appear.
+    window.addEventListener("load", () => {
+        const expandTopLevel = () => {
+            const items = document.querySelectorAll(
+                "#nav-tree-contents > ul > li > ul > li > .item")
+            if (!items.length) return false
+            items.forEach((item) => {
+                const arrow = item.querySelector(".arrowhead.closed")
+                if (arrow) arrow.closest("a").click()
+            })
+            return true
+        }
+        if (expandTopLevel()) return
+        const contents = document.getElementById("nav-tree-contents")
+        if (!contents) return
+        const observer = new MutationObserver(() => {
+            if (expandTopLevel()) observer.disconnect()
+        })
+        observer.observe(contents, { childList: true, subtree: true })
+    })
 </script>
 </head>
 <body>
