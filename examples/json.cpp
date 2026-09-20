@@ -19,7 +19,9 @@ using nlohmann::json;
 
 class ConfigJSON : public CLI::Config {
   public:
-    std::string to_config(const CLI::App *app, bool default_also, bool, std::string) const override {
+    using CLI::Config::to_config;  // fix warning C4266: no override available for virtual member function from base 'CLI::Config'; function is hidden.
+
+    virtual std::string to_config(const CLI::App *app, bool default_also, bool write_description, std::string prefix) const override {
 
         json j;
 
