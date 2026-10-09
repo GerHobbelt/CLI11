@@ -221,7 +221,17 @@ CLI11_INLINE Option *App::add_option(std::string option_name,
         std::find_if(std::begin(options_), std::end(options_), [&myopt](const Option_p &v) { return *v == myopt; });
     if(res != options_.end()) {
         const auto &matchname = (*res)->matching_name(myopt);
-        throw(OptionAlreadyAdded("added option matched existing option name: " + matchname));
+        std::string conflict;
+        if((*res)->check_sname(matchname)) {
+            conflict = "short name '-" + matchname + "'";
+        } else if((*res)->check_lname(matchname)) {
+            conflict = "long name '--" + matchname + "'";
+        } else {
+            conflict = "name '" + matchname + "'";
+        }
+        throw OptionAlreadyAdded("cannot add '" + option_name + "': " + conflict + " already used by '" +
+                                     (*res)->get_name() + "'",
+                                 ExitCodes::OptionAlreadyAdded);
     }
     /** get a top level parent*/
     const App *top_level_parent = this;
@@ -367,12 +377,13 @@ App::set_version_flag(std::string flag_name, const std::string &versionString, c
     if(version_ptr_ != nullptr) {
         remove_option(version_ptr_);
         version_ptr_ = nullptr;
+        version_producer_ = nullptr;
     }
 
     // Empty name will simply remove the version flag
     if(!flag_name.empty()) {
-        version_ptr_ = add_flag_callback(
-            flag_name, [versionString]() { throw(CLI::CallForVersion(versionString, 0)); }, version_help);
+        version_producer_ = [versionString]() { return versionString; };
+        version_ptr_ = add_flag_callback(flag_name, []() {}, version_help);
         version_ptr_->configurable(false)->callback_priority(CallbackPriority::First);
     }
 
@@ -384,12 +395,13 @@ App::set_version_flag(std::string flag_name, std::function<std::string()> vfunc,
     if(version_ptr_ != nullptr) {
         remove_option(version_ptr_);
         version_ptr_ = nullptr;
+        version_producer_ = nullptr;
     }
 
     // Empty name will simply remove the version flag
     if(!flag_name.empty()) {
-        version_ptr_ =
-            add_flag_callback(flag_name, [vfunc]() { throw(CLI::CallForVersion(vfunc(), 0)); }, version_help);
+        version_producer_ = std::move(vfunc);
+        version_ptr_ = add_flag_callback(flag_name, []() {}, version_help);
         version_ptr_->configurable(false)->callback_priority(CallbackPriority::First);
     }
 
@@ -965,18 +977,8 @@ CLI11_NODISCARD CLI11_INLINE std::string App::help(std::string prev, AppFormatMo
 
 CLI11_NODISCARD CLI11_INLINE std::string App::version() const {
     std::string val;
-    if(version_ptr_ != nullptr) {
-        // copy the results for reuse later
-        results_t rv = version_ptr_->results();
-        version_ptr_->clear();
-        version_ptr_->add_result("true");
-        try {
-            version_ptr_->run_callback();
-        } catch(const CLI::CallForVersion &cfv) {
-            val = cfv.what();
-        }
-        version_ptr_->clear();
-        version_ptr_->add_result(rv);
+    if(version_ptr_ != nullptr && version_producer_) {
+        val = version_producer_();
     }
     return val;
 }
@@ -1463,6 +1465,15 @@ CLI11_INLINE void App::_process_callbacks(CallbackPriority priority) {
                     sub->run_callback();
                 }
             }
+        }
+    }
+
+    // the version flag triggers here rather than from an option callback
+    if(version_ptr_ != nullptr && version_ptr_->get_callback_priority() == priority && version_ptr_->count() > 0 &&
+       !version_ptr_->get_callback_run()) {
+        bool trigger{false};
+        if(detail::lexical_cast(version_ptr_->results()[0], trigger) && trigger) {
+            throw CLI::CallForVersion(version_producer_(), 0);
         }
     }
 

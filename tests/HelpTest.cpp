@@ -561,6 +561,25 @@ TEST_CASE("THelp: ManualSetters", "[help]") {
     CHECK_THAT(help, Contains("[18]"));
 }
 
+TEST_CASE("THelp: UnlimitedSubcommandsUsePlural", "[help]") {
+    // max==0 means unlimited (App::require_subcommand_max_); help must use plural.
+    CLI::App app{"My prog"};
+    app.add_subcommand("sub1");
+    app.add_subcommand("sub2");
+
+    // default max is 0 (unlimited)
+    CHECK(0u == app.get_require_subcommand_max());
+    CHECK_THAT(app.help(), Contains("Usage: [OPTIONS] [SUBCOMMANDS]"));
+
+    app.require_subcommand(0);  // still unlimited max
+    CHECK(0u == app.get_require_subcommand_max());
+    CHECK_THAT(app.help(), Contains("Usage: [OPTIONS] [SUBCOMMANDS]"));
+
+    app.require_subcommand(2, 0);  // min 2, max unlimited
+    CHECK(0u == app.get_require_subcommand_max());
+    CHECK_THAT(app.help(), Contains("Usage: [OPTIONS] SUBCOMMANDS"));
+}
+
 TEST_CASE("THelp: Subcom", "[help]") {
     CLI::App app{"My prog"};
 
@@ -1679,6 +1698,41 @@ TEST_CASE("TVersion: exit_with_required", "[help]") {
         CHECK_THAT(out.str(), Contains(CLI11_VERSION));
         CHECK(0 == ret);
     }
+}
+
+TEST_CASE("TVersion: help_precedence", "[help]") {
+    // help wins over version regardless of the order on the command line
+    CLI::App app;
+
+    app.set_version_flag("--version", CLI11_VERSION);
+
+    CHECK_THROWS_AS(app.parse("--version --help"), CLI::CallForHelp);
+    CHECK_THROWS_AS(app.parse("--help --version"), CLI::CallForHelp);
+}
+
+TEST_CASE("TVersion: no_parse_in_flight", "[help]") {
+    // version() works with no parse in flight and does not disturb parse results
+    CLI::App app;
+
+    app.set_version_flag("--version", CLI11_VERSION);
+    CHECK_THAT(app.version(), Equals(CLI11_VERSION));
+
+    try {
+        app.parse("--version");
+    } catch(const CLI::CallForVersion &v) {
+        CHECK_THAT(CLI11_VERSION, Equals(v.what()));
+    }
+    CHECK(1U == app.get_version_ptr()->count());
+    CHECK_THAT(app.version(), Equals(CLI11_VERSION));
+}
+
+TEST_CASE("TVersion: false_value", "[help]") {
+    // an explicit false value does not trigger the version output
+    CLI::App app;
+
+    app.set_version_flag("--version", CLI11_VERSION);
+
+    CHECK_NOTHROW(app.parse("--version=false"));
 }
 
 TEST_CASE("THelp: Delimiter", "[help]") {
